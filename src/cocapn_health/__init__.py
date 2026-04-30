@@ -1,5 +1,4 @@
 """Cocapn Health — Lightweight fleet service health checker.
-
 Maximum capability in minimum lines. Zero dependencies beyond stdlib.
 """
 import json
@@ -46,14 +45,14 @@ class HealthChecker:
         """Check a single service."""
         url = f"http://{svc.host}:{svc.port}{svc.path}"
         start = time.time()
-        
+
         try:
             req = urllib.request.Request(url, method=svc.method, headers=svc.headers)
             with urllib.request.urlopen(req, timeout=svc.timeout) as resp:
                 latency = (time.time() - start) * 1000
                 status_code = resp.status
                 body = resp.read(2048).decode("utf-8", errors="replace")
-                
+
                 # Try to parse JSON and extract fields
                 details = {"status_code": status_code, "latency_ms": round(latency, 1)}
                 try:
@@ -66,12 +65,12 @@ class HealthChecker:
                             details[key] = val
                     else:
                         # Auto-extract useful metrics
-                        for k in ["rooms", "tiles", "total_rules", "total_matches", "total_players", "uptime_seconds"]:
+                        for k in ["rooms", "tiles", "total_rules", "total_matches", "total_players", "uptime_seconds", "total_drills", "streams"]:
                             if k in data:
                                 details[k] = data[k]
                 except json.JSONDecodeError:
                     details["body_preview"] = body[:100]
-                
+
                 # Check expected status if specified
                 if svc.expect_status and status_code != svc.expect_status:
                     return CheckResult(
@@ -81,7 +80,7 @@ class HealthChecker:
                         status=f"HTTP {status_code} (expected {svc.expect_status})",
                         details=details,
                     )
-                
+
                 return CheckResult(
                     name=svc.name,
                     ok=True,
@@ -89,7 +88,7 @@ class HealthChecker:
                     status=f"UP | HTTP {status_code}",
                     details=details,
                 )
-                
+
         except urllib.error.HTTPError as e:
             latency = (time.time() - start) * 1000
             # HTTP 404 from a live service is still "up" in many cases
@@ -127,7 +126,7 @@ class HealthChecker:
         """Generate a report string."""
         up = sum(1 for r in results if r.ok)
         down = len(results) - up
-        
+
         if format == "json":
             return json.dumps({
                 "summary": {"total": len(results), "up": up, "down": down},
@@ -143,7 +142,7 @@ class HealthChecker:
                     for r in results
                 ],
             }, indent=2, default=str)
-        
+
         elif format == "markdown":
             lines = [
                 "# Fleet Health Report",
@@ -157,31 +156,41 @@ class HealthChecker:
                 emoji = "🟢" if r.ok else "🔴"
                 details = " | ".join(f"{k}={v}" for k, v in list(r.details.items())[:3])
                 lines.append(f"| {emoji} {r.name} | {r.status} | {r.latency_ms:.0f}ms | {details} |")
-            return "\n".join(lines)
-        
+            return "
+".join(lines)
+
         elif format == "oneline":
             status = "✅" if down == 0 else f"⚠️ {down} down"
             slow = [r for r in results if r.latency_ms > 1000]
             slow_str = f", {len(slow)} slow" if slow else ""
             return f"Fleet: {up}/{len(results)} up{slow_str} {status}"
-        
+
         return ""
 
 
 # --- Fleet defaults ---
+# FIX v1.0.1 — KimiAuditor
+# 1. The Lock v2 now probed on /status (was /, caused 404 mask).
+# 2. Matrix Bridge extract removed (response is a user map, not a room list).
+# 3. Added 4 missing services: Harbor, Service Guard, Task Queue, Steward.
 
 FLEET_SERVICES = [
     ServiceDef("MUD v3", "147.224.38.131", 4042, "/status", extract={"rooms": "rooms"}),
-    ServiceDef("The Lock v2", "147.224.38.131", 4043, "/"),
+    ServiceDef("The Lock v2", "147.224.38.131", 4043, "/status", extract={"strategies": "strategies"}),
     ServiceDef("Arena", "147.224.38.131", 4044, "/stats", extract={"matches": "total_matches"}),
     ServiceDef("Grammar Engine", "147.224.38.131", 4045, "/grammar", extract={"rules": "total_rules"}),
     ServiceDef("Dashboard", "147.224.38.131", 4046, "/"),
     ServiceDef("Federated Nexus", "147.224.38.131", 4047, "/"),
+    ServiceDef("Harbor", "147.224.38.131", 4050, "/"),
     ServiceDef("Grammar Compactor", "147.224.38.131", 4055, "/status", extract={"rules": "total_rules"}),
     ServiceDef("Rate-Attention", "147.224.38.131", 4056, "/streams"),
-    ServiceDef("Skill Forge", "147.224.38.131", 4057, "/status"),
+    ServiceDef("Skill Forge", "147.224.38.131", 4057, "/status", extract={"drills": "total_drills"}),
     ServiceDef("PLATO Terminal", "147.224.38.131", 4060, "/"),
     ServiceDef("PLATO Gate", "147.224.38.131", 8847, "/rooms", extract={"rooms": "rooms"}),
     ServiceDef("PLATO Shell", "147.224.38.131", 8848, "/"),
-    ServiceDef("Matrix Bridge", "147.224.38.131", 6168, "/status", extract={"rooms": "rooms"}),
+    ServiceDef("Service Guard", "147.224.38.131", 8899, "/"),
+    ServiceDef("Task Queue", "147.224.38.131", 8900, "/"),
+    ServiceDef("Steward", "147.224.38.131", 8901, "/"),
+    ServiceDef("Matrix Bridge", "147.224.38.131", 6168, "/status"),
+    ServiceDef("Conduwuit", "147.224.38.131", 6167, "/"),
 ]
