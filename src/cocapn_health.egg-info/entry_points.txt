@@ -1,0 +1,2 @@
+[console_scripts]
+cocapn-health = cocapn_health.cli:main
