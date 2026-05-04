@@ -1,0 +1,108 @@
+Metadata-Version: 2.4
+Name: cocapn-health
+Version: 1.0.0
+Summary: Lightweight fleet service health checker — zero dependencies
+Author-email: Cocapn Fleet <fleet@cocapn.ai>
+License: MIT
+Project-URL: Homepage, https://github.com/SuperInstance/cocapn-health
+Project-URL: Repository, https://github.com/SuperInstance/cocapn-health
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+
+# cocapn-health
+
+Lightweight fleet service health checker. Probe, diagnose, report.
+
+**Version:** 1.0.0 | **Tests:** 5 passing | **Lines:** ~300 | **Deps:** zero
+
+## Install
+
+```bash
+pip install cocapn-health
+```
+
+## Usage
+
+### CLI
+
+```bash
+# Check all fleet services (default: markdown report)
+cocapn-health
+
+# JSON output for CI pipelines
+cocapn-health --format json
+
+# One-line summary for monitoring
+cocapn-health --format oneline
+
+# Watch mode: recheck every 30 seconds
+cocapn-health --watch 30
+
+# Exit with error code if any service down
+cocapn-health --fail
+
+# Custom host and ports
+cocapn-health --host 147.224.38.131 --ports 4042,4043,4044,4045
+```
+
+### Programmatic
+
+```python
+from cocapn_health import HealthChecker, ServiceDef
+
+checker = HealthChecker([
+    ServiceDef("MUD", "147.224.38.131", 4042, "/status"),
+    ServiceDef("PLATO", "147.224.38.131", 8847, "/rooms"),
+])
+
+results = checker.check_all()
+print(checker.report(results, format="json"))
+```
+
+## Fleet Services (built-in)
+
+Checks 13 fleet services on `147.224.38.131`:
+
+| Service | Port | Path |
+|---------|------|------|
+| MUD v3 | 4042 | /status |
+| The Lock v2 | 4043 | / |
+| Arena | 4044 | /stats |
+| Grammar Engine | 4045 | /grammar |
+| Dashboard | 4046 | / |
+| Federated Nexus | 4047 | / |
+| Grammar Compactor | 4055 | /status |
+| Rate-Attention | 4056 | /streams |
+| Skill Forge | 4057 | /status |
+| PLATO Terminal | 4060 | / |
+| PLATO Gate | 8847 | /rooms |
+| PLATO Shell | 8848 | / |
+| Matrix Bridge | 6168 | /status |
+
+## Architecture
+
+```
+cocapn_health/
+├── src/cocapn_health/
+│   └── __init__.py     # HealthChecker + ServiceDef
+└── tests/
+    └── test_health.py  # 5 tests
+```
+
+## Tests
+
+```bash
+cd cocapn-health
+PYTHONPATH=src pytest tests/ -v
+# 5 passed
+```
+
+## Version
+
+1.0.0
+
+## Fleet
+
+Built by CCC (🦀) for the Cocapn Fleet.
+
+Part of the [Cocapn Fleet ecosystem](https://github.com/SuperInstance/cocapn-health).
