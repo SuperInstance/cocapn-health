@@ -129,7 +129,7 @@ class EventBusHealthChecker(HealthChecker):
             return
         try:
             if hasattr(self._bus, "emit"):
-                self._bus.emit(event_type, payload)
+                self._bus.emit({"type": event_type, **payload})
         except Exception:
             # Non-fatal: EventBus failure must not break health checks
             pass

@@ -69,10 +69,12 @@ class TestStateTransitions:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_down):
             checker.check_all()
 
-        calls = [c for c in mock_bus.emit.call_args_list if c[0][0] == "service_down"]
+        # emit is now called with {"type": event_type, **payload}
+        calls = [c for c in mock_bus.emit.call_args_list
+                 if c.args and c.args[0].get("type") == "service_down"]
         assert len(calls) == 2, "Both services should emit service_down on first check"
-        assert calls[0][0][1]["service"] == "MUD"
-        assert calls[1][0][1]["service"] == "Arena"
+        assert calls[0].args[0]["service"] == "MUD"
+        assert calls[1].args[0]["service"] == "Arena"
 
     def test_first_check_up_does_not_emit(self, mock_bus, services):
         checker = EventBusHealthChecker(services, bus=mock_bus)
@@ -88,7 +90,8 @@ class TestStateTransitions:
         # First check: DOWN
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_down):
             checker.check_all()
-        down_calls = [c for c in mock_bus.emit.call_args_list if c[0][0] == "service_down"]
+        down_calls = [c for c in mock_bus.emit.call_args_list
+                      if c.args and c.args[0].get("type") == "service_down"]
         assert len(down_calls) == 2
 
         # Second check: UP
@@ -96,7 +99,8 @@ class TestStateTransitions:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_up):
             checker.check_all()
 
-        recovered = [c for c in mock_bus.emit.call_args_list if c[0][0] == "service_recovered"]
+        recovered = [c for c in mock_bus.emit.call_args_list
+                   if c.args and c.args[0].get("type") == "service_recovered"]
         assert len(recovered) == 2
 
     def test_up_to_down_emits_service_down(self, mock_bus, services):
@@ -111,7 +115,8 @@ class TestStateTransitions:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_down):
             checker.check_all()
 
-        down = [c for c in mock_bus.emit.call_args_list if c[0][0] == "service_down"]
+        down = [c for c in mock_bus.emit.call_args_list
+                if c.args and c.args[0].get("type") == "service_down"]
         assert len(down) == 2
 
     def test_no_emit_when_state_unchanged(self, mock_bus, services):
@@ -139,7 +144,7 @@ class TestThermalMetrics:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_down):
             checker.check_all()
 
-        _, payload = mock_bus.emit.call_args_list[0][0]
+        payload = mock_bus.emit.call_args_list[0].args[0]
         assert "thermal" in payload
         assert "timestamp" in payload["thermal"]
 
@@ -190,9 +195,10 @@ class TestFleetHealthSnapshot:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_up):
             checker.check_all()
 
-        fleet = [c for c in mock_bus.emit.call_args_list if c[0][0] == "fleet_health"]
+        fleet = [c for c in mock_bus.emit.call_args_list
+                 if c.args and c.args[0].get("type") == "fleet_health"]
         assert len(fleet) == 1
-        payload = fleet[0][0][1]
+        payload = fleet[0].args[0]
         assert payload["total"] == 2
         assert payload["up"] == 2
         assert payload["down"] == 0
@@ -203,7 +209,8 @@ class TestFleetHealthSnapshot:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_up):
             checker.check_all()
 
-        fleet = [c for c in mock_bus.emit.call_args_list if c[0][0] == "fleet_health"]
+        fleet = [c for c in mock_bus.emit.call_args_list
+                 if c.args and c.args[0].get("type") == "fleet_health"]
         assert len(fleet) == 0
 
 
