@@ -156,8 +156,7 @@ class HealthChecker:
                 emoji = "🟢" if r.ok else "🔴"
                 details = " | ".join(f"{k}={v}" for k, v in list(r.details.items())[:3])
                 lines.append(f"| {emoji} {r.name} | {r.status} | {r.latency_ms:.0f}ms | {details} |")
-            return "
-".join(lines)
+            return "\n".join(lines)
 
         elif format == "oneline":
             status = "✅" if down == 0 else f"⚠️ {down} down"
