@@ -98,8 +98,17 @@ cocapn-health --watch 30
 # Exit with error code if any service is down
 cocapn-health --fail
 
-# Custom host and ports
-cocapn-health --host 147.224.38.131 --ports 4042,4043,4044,4045
+# Override host for all fleet services
+cocapn-health --host 127.0.0.1
+
+# Or via environment variable
+COCAPN_HEALTH_HOST=127.0.0.1 cocapn-health
+
+# Custom services (name:host:port or name:port)
+cocapn-health --services api:127.0.0.1:8080,worker:8081
+
+# Custom host + custom services
+cocapn-health --host 192.168.1.100 --services api:8080,worker:8081
 ```
 
 ### Programmatic

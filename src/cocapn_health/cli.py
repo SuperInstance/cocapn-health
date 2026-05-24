@@ -9,9 +9,11 @@ Usage:
     cocapn-health --watch 30         # Check every 30 seconds
 """
 import argparse
+import os
 import sys
 import time
-from cocapn_health import HealthChecker, FLEET_SERVICES
+from dataclasses import replace
+from cocapn_health import HealthChecker, ServiceDef, FLEET_SERVICES
 
 
 def main():
@@ -19,9 +21,34 @@ def main():
     parser.add_argument("--format", choices=["json", "md", "oneline"], default="md", help="Output format")
     parser.add_argument("--watch", type=int, help="Watch mode: recheck every N seconds")
     parser.add_argument("--fail", action="store_true", help="Exit with error code if any service down")
+    parser.add_argument("--host", default=None, help="Override default host (env: COCAPN_HEALTH_HOST)")
+    parser.add_argument("--services", default=None, help="Comma-separated name:host:port list, e.g. api:127.0.0.1:8080,worker:127.0.0.1:8081")
     args = parser.parse_args()
 
-    checker = HealthChecker(FLEET_SERVICES)
+    services = FLEET_SERVICES
+    
+    # Host override
+    host = args.host or os.environ.get("COCAPN_HEALTH_HOST")
+    if host:
+        services = [replace(svc, host=host) for svc in services]
+    
+    # Custom services override
+    if args.services:
+        services = []
+        for spec in args.services.split(","):
+            parts = spec.split(":")
+            if len(parts) == 2:
+                # name:port (host from env/default)
+                name, port = parts
+                services.append(ServiceDef(name, host or "127.0.0.1", int(port)))
+            elif len(parts) == 3:
+                name, h, port = parts
+                services.append(ServiceDef(name, h, int(port)))
+            else:
+                print(f"Invalid service spec: {spec} (expected name:port or name:host:port)")
+                sys.exit(1)
+
+    checker = HealthChecker(services)
 
     def run_check():
         results = checker.check_all()
