@@ -167,29 +167,35 @@ class HealthChecker:
         return ""
 
 
+import os
+
 # --- Fleet defaults ---
 # FIX v1.0.1 — KimiAuditor
 # 1. The Lock v2 now probed on /status (was /, caused 404 mask).
 # 2. Matrix Bridge extract removed (response is a user map, not a room list).
 # 3. Added 4 missing services: Harbor, Service Guard, Task Queue, Steward.
+# FIX v1.0.2 — CCC
+# 4. Fleet host now configurable via COCAPN_HEALTH_HOST env var.
+
+_FLEET_HOST = os.environ.get("COCAPN_HEALTH_HOST", "147.224.38.131")
 
 FLEET_SERVICES = [
-    ServiceDef("MUD v3", "147.224.38.131", 4042, "/status", extract={"rooms": "rooms"}),
-    ServiceDef("The Lock v2", "147.224.38.131", 4043, "/status", extract={"strategies": "strategies"}),
-    ServiceDef("Arena", "147.224.38.131", 4044, "/stats", extract={"matches": "total_matches"}),
-    ServiceDef("Grammar Engine", "147.224.38.131", 4045, "/grammar", extract={"rules": "total_rules"}),
-    ServiceDef("Dashboard", "147.224.38.131", 4046, "/"),
-    ServiceDef("Federated Nexus", "147.224.38.131", 4047, "/"),
-    ServiceDef("Harbor", "147.224.38.131", 4050, "/"),
-    ServiceDef("Grammar Compactor", "147.224.38.131", 4055, "/status", extract={"rules": "total_rules"}),
-    ServiceDef("Rate-Attention", "147.224.38.131", 4056, "/streams"),
-    ServiceDef("Skill Forge", "147.224.38.131", 4057, "/status", extract={"drills": "total_drills"}),
-    ServiceDef("PLATO Terminal", "147.224.38.131", 4060, "/"),
-    ServiceDef("PLATO Gate", "147.224.38.131", 8847, "/rooms", extract={"rooms": "rooms"}),
-    ServiceDef("PLATO Shell", "147.224.38.131", 8848, "/"),
-    ServiceDef("Service Guard", "147.224.38.131", 8899, "/"),
-    ServiceDef("Task Queue", "147.224.38.131", 8900, "/"),
-    ServiceDef("Steward", "147.224.38.131", 8901, "/"),
-    ServiceDef("Matrix Bridge", "147.224.38.131", 6168, "/status"),
-    ServiceDef("Conduwuit", "147.224.38.131", 6167, "/"),
+    ServiceDef("MUD v3", _FLEET_HOST, 4042, "/status", extract={"rooms": "rooms"}),
+    ServiceDef("The Lock v2", _FLEET_HOST, 4043, "/status", extract={"strategies": "strategies"}),
+    ServiceDef("Arena", _FLEET_HOST, 4044, "/stats", extract={"matches": "total_matches"}),
+    ServiceDef("Grammar Engine", _FLEET_HOST, 4045, "/grammar", extract={"rules": "total_rules"}),
+    ServiceDef("Dashboard", _FLEET_HOST, 4046, "/"),
+    ServiceDef("Federated Nexus", _FLEET_HOST, 4047, "/"),
+    ServiceDef("Harbor", _FLEET_HOST, 4050, "/"),
+    ServiceDef("Grammar Compactor", _FLEET_HOST, 4055, "/status", extract={"rules": "total_rules"}),
+    ServiceDef("Rate-Attention", _FLEET_HOST, 4056, "/streams"),
+    ServiceDef("Skill Forge", _FLEET_HOST, 4057, "/status", extract={"drills": "total_drills"}),
+    ServiceDef("PLATO Terminal", _FLEET_HOST, 4060, "/"),
+    ServiceDef("PLATO Gate", _FLEET_HOST, 8847, "/rooms", extract={"rooms": "rooms"}),
+    ServiceDef("PLATO Shell", _FLEET_HOST, 8848, "/"),
+    ServiceDef("Service Guard", _FLEET_HOST, 8899, "/"),
+    ServiceDef("Task Queue", _FLEET_HOST, 8900, "/"),
+    ServiceDef("Steward", _FLEET_HOST, 8901, "/"),
+    ServiceDef("Matrix Bridge", _FLEET_HOST, 6168, "/status"),
+    ServiceDef("Conduwuit", _FLEET_HOST, 6167, "/"),
 ]
