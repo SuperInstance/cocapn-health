@@ -1,5 +1,4 @@
-"""Entry point for python3 -m cocapn_health."""
-from cocapn_health import main
+"""Allow running as: python -m cocapn_health"""
+from cocapn_health.cli import main
 
-if __name__ == "__main__":
-    main()
+main()

@@ -1,11 +1,15 @@
-"""Cocapn Health — Lightweight fleet service health checker.
+"""cocapn_health — Lightweight fleet service health checker.
+
 Maximum capability in minimum lines. Zero dependencies beyond stdlib.
 """
 import json
 import urllib.request
 import socket
 import time
-from typing import Dict, List, Any, Optional
+import os
+import subprocess
+import shutil
+from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -35,6 +39,257 @@ class CheckResult:
     checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+# ── Health Check Functions ──────────────────────────────────────────
+
+def check_http(url: str, method: str = "GET", headers: Optional[Dict[str, str]] = None,
+               timeout: float = 5.0, expect_status: Optional[int] = None,
+               extract: Optional[Dict[str, str]] = None) -> CheckResult:
+    """Check an HTTP endpoint."""
+    start = time.time()
+    hdrs = headers or {}
+    name = url
+
+    try:
+        req = urllib.request.Request(url, method=method, headers=hdrs)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            latency = (time.time() - start) * 1000
+            status_code = resp.status
+            body = resp.read(2048).decode("utf-8", errors="replace")
+
+            details: Dict[str, Any] = {"status_code": status_code, "latency_ms": round(latency, 1)}
+            try:
+                data = json.loads(body)
+                if extract:
+                    for key, path in extract.items():
+                        val = data
+                        for part in path.split("."):
+                            val = val.get(part, {}) if isinstance(val, dict) else None
+                        details[key] = val
+            except json.JSONDecodeError:
+                details["body_preview"] = body[:100]
+
+            if expect_status and status_code != expect_status:
+                return CheckResult(name=name, ok=False, latency_ms=round(latency, 1),
+                                   status=f"HTTP {status_code} (expected {expect_status})", details=details)
+
+            return CheckResult(name=name, ok=True, latency_ms=round(latency, 1),
+                               status=f"UP | HTTP {status_code}", details=details)
+
+    except urllib.error.HTTPError as e:
+        latency = (time.time() - start) * 1000
+        if e.code in (404, 400, 401):
+            return CheckResult(name=name, ok=True, latency_ms=round(latency, 1),
+                               status=f"UP | HTTP {e.code}", details={"status_code": e.code})
+        return CheckResult(name=name, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | HTTP {e.code}", details={"status_code": e.code, "error": str(e)})
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=name, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | {type(e).__name__}", details={"error": str(e)})
+
+
+def check_tcp(host: str, port: int, timeout: float = 5.0) -> CheckResult:
+    """Check if a TCP port is reachable."""
+    start = time.time()
+    name = f"{host}:{port}"
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        sock.close()
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=name, ok=True, latency_ms=round(latency, 1),
+                           status="UP | TCP connected", details={})
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=name, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | {type(e).__name__}", details={"error": str(e)})
+
+
+def check_dns(hostname: str, timeout: float = 5.0) -> CheckResult:
+    """Check DNS resolution."""
+    start = time.time()
+    try:
+        socket.setdefaulttimeout(timeout)
+        addrs = socket.getaddrinfo(hostname, None)
+        latency = (time.time() - start) * 1000
+        ips = list(set(addr[4][0] for addr in addrs))[:5]
+        return CheckResult(name=hostname, ok=True, latency_ms=round(latency, 1),
+                           status="UP | DNS resolved", details={"addresses": ips})
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=hostname, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | DNS failed: {type(e).__name__}", details={"error": str(e)})
+
+
+def check_process(name: str) -> CheckResult:
+    """Check if a process is running by name (uses pgrep)."""
+    start = time.time()
+    try:
+        result = subprocess.run(["pgrep", "-c", name], capture_output=True, text=True, timeout=5)
+        latency = (time.time() - start) * 1000
+        if result.returncode == 0:
+            count = int(result.stdout.strip())
+            return CheckResult(name=name, ok=True, latency_ms=round(latency, 1),
+                               status=f"UP | {count} instances", details={"count": count})
+        return CheckResult(name=name, ok=False, latency_ms=round(latency, 1),
+                           status="DOWN | not running", details={})
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=name, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | {type(e).__name__}", details={"error": str(e)})
+
+
+def check_disk(path: str = "/", min_percent_free: float = 10.0) -> CheckResult:
+    """Check disk space."""
+    start = time.time()
+    try:
+        usage = shutil.disk_usage(path)
+        latency = (time.time() - start) * 1000
+        percent_free = (usage.free / usage.total) * 100
+        ok = percent_free >= min_percent_free
+        return CheckResult(name=path, ok=ok, latency_ms=round(latency, 1),
+                           status=f"{'OK' if ok else 'LOW'} | {percent_free:.1f}% free",
+                           details={
+                               "total_gb": round(usage.total / (1024**3), 2),
+                               "used_gb": round(usage.used / (1024**3), 2),
+                               "free_gb": round(usage.free / (1024**3), 2),
+                               "percent_free": round(percent_free, 1),
+                           })
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=path, ok=False, latency_ms=round(latency, 1),
+                           status=f"ERROR | {type(e).__name__}", details={"error": str(e)})
+
+
+def check_memory(min_percent_free: float = 10.0) -> CheckResult:
+    """Check system memory using /proc/meminfo (Linux) or vm_stat (macOS)."""
+    start = time.time()
+    try:
+        if os.path.exists("/proc/meminfo"):
+            info: Dict[str, float] = {}
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        key = parts[0].rstrip(":")
+                        info[key] = float(parts[1])  # in kB
+            total = info.get("MemTotal", 0) * 1024
+            available = info.get("MemAvailable", info.get("MemFree", 0)) * 1024
+        else:
+            # Fallback: try vm_stat on macOS
+            result = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5)
+            lines = result.stdout.strip().split("\n")
+            info = {}
+            for line in lines:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    info[k.strip()] = int(v.strip().rstrip("."))
+            page_size = 4096
+            total = info.get("Pages free", 0) * page_size + info.get("Pages active", 0) * page_size
+            available = info.get("Pages free", 0) * page_size
+
+        latency = (time.time() - start) * 1000
+        if total == 0:
+            return CheckResult(name="memory", ok=False, latency_ms=round(latency, 1),
+                               status="ERROR | could not read memory", details={})
+
+        percent_free = (available / total) * 100
+        ok = percent_free >= min_percent_free
+        return CheckResult(name="memory", ok=ok, latency_ms=round(latency, 1),
+                           status=f"{'OK' if ok else 'LOW'} | {percent_free:.1f}% available",
+                           details={
+                               "total_mb": round(total / (1024**2), 1),
+                               "available_mb": round(available / (1024**2), 1),
+                               "percent_available": round(percent_free, 1),
+                           })
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name="memory", ok=False, latency_ms=round(latency, 1),
+                           status=f"ERROR | {type(e).__name__}", details={"error": str(e)})
+
+
+def check_cpu(max_percent: float = 95.0) -> CheckResult:
+    """Check CPU load average (Linux/macOS)."""
+    start = time.time()
+    try:
+        load1, load5, load15 = os.getloadavg()
+        cpu_count = os.cpu_count() or 1
+        latency = (time.time() - start) * 1000
+        utilization = (load1 / cpu_count) * 100
+        ok = utilization < max_percent
+        return CheckResult(name="cpu", ok=ok, latency_ms=round(latency, 1),
+                           status=f"{'OK' if ok else 'HIGH'} | load {load1:.2f} ({utilization:.0f}%)",
+                           details={
+                               "load_1m": round(load1, 2),
+                               "load_5m": round(load5, 2),
+                               "load_15m": round(load15, 2),
+                               "cpu_count": cpu_count,
+                               "utilization_percent": round(utilization, 1),
+                           })
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name="cpu", ok=False, latency_ms=round(latency, 1),
+                           status=f"ERROR | {type(e).__name__}", details={"error": str(e)})
+
+
+def check_system() -> List[CheckResult]:
+    """Run all system-level checks: disk, memory, CPU."""
+    return [check_disk(), check_memory(), check_cpu()]
+
+
+# ── Fleet-Aware Checking ────────────────────────────────────────────
+
+def check_fleet_service(service: ServiceDef) -> CheckResult:
+    """Check a fleet service (HTTP by default)."""
+    url = f"http://{service.host}:{service.port}{service.path}"
+    start = time.time()
+
+    try:
+        req = urllib.request.Request(url, method=service.method, headers=service.headers)
+        with urllib.request.urlopen(req, timeout=service.timeout) as resp:
+            latency = (time.time() - start) * 1000
+            status_code = resp.status
+            body = resp.read(2048).decode("utf-8", errors="replace")
+
+            details: Dict[str, Any] = {"status_code": status_code, "latency_ms": round(latency, 1)}
+            try:
+                data = json.loads(body)
+                if service.extract:
+                    for key, path in service.extract.items():
+                        val = data
+                        for part in path.split("."):
+                            val = val.get(part, {}) if isinstance(val, dict) else None
+                        details[key] = val
+                else:
+                    for k in ["rooms", "tiles", "total_rules", "total_matches", "total_players",
+                              "uptime_seconds", "total_drills", "streams"]:
+                        if k in data:
+                            details[k] = data[k]
+            except json.JSONDecodeError:
+                details["body_preview"] = body[:100]
+
+            if service.expect_status and status_code != service.expect_status:
+                return CheckResult(name=service.name, ok=False, latency_ms=round(latency, 1),
+                                   status=f"HTTP {status_code} (expected {service.expect_status})", details=details)
+
+            return CheckResult(name=service.name, ok=True, latency_ms=round(latency, 1),
+                               status=f"UP | HTTP {status_code}", details=details)
+
+    except urllib.error.HTTPError as e:
+        latency = (time.time() - start) * 1000
+        if e.code in (404, 400, 401):
+            return CheckResult(name=service.name, ok=True, latency_ms=round(latency, 1),
+                               status=f"UP | HTTP {e.code}", details={"status_code": e.code})
+        return CheckResult(name=service.name, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | HTTP {e.code}", details={"status_code": e.code, "error": str(e)})
+    except Exception as e:
+        latency = (time.time() - start) * 1000
+        return CheckResult(name=service.name, ok=False, latency_ms=round(latency, 1),
+                           status=f"DOWN | {type(e).__name__}", details={"error": str(e)})
+
+
 class HealthChecker:
     """Check fleet services and produce reports."""
 
@@ -43,79 +298,7 @@ class HealthChecker:
 
     def check_one(self, svc: ServiceDef) -> CheckResult:
         """Check a single service."""
-        url = f"http://{svc.host}:{svc.port}{svc.path}"
-        start = time.time()
-
-        try:
-            req = urllib.request.Request(url, method=svc.method, headers=svc.headers)
-            with urllib.request.urlopen(req, timeout=svc.timeout) as resp:
-                latency = (time.time() - start) * 1000
-                status_code = resp.status
-                body = resp.read(2048).decode("utf-8", errors="replace")
-
-                # Try to parse JSON and extract fields
-                details = {"status_code": status_code, "latency_ms": round(latency, 1)}
-                try:
-                    data = json.loads(body)
-                    if svc.extract:
-                        for key, path in svc.extract.items():
-                            val = data
-                            for part in path.split("."):
-                                val = val.get(part, {}) if isinstance(val, dict) else None
-                            details[key] = val
-                    else:
-                        # Auto-extract useful metrics
-                        for k in ["rooms", "tiles", "total_rules", "total_matches", "total_players", "uptime_seconds", "total_drills", "streams"]:
-                            if k in data:
-                                details[k] = data[k]
-                except json.JSONDecodeError:
-                    details["body_preview"] = body[:100]
-
-                # Check expected status if specified
-                if svc.expect_status and status_code != svc.expect_status:
-                    return CheckResult(
-                        name=svc.name,
-                        ok=False,
-                        latency_ms=round(latency, 1),
-                        status=f"HTTP {status_code} (expected {svc.expect_status})",
-                        details=details,
-                    )
-
-                return CheckResult(
-                    name=svc.name,
-                    ok=True,
-                    latency_ms=round(latency, 1),
-                    status=f"UP | HTTP {status_code}",
-                    details=details,
-                )
-
-        except urllib.error.HTTPError as e:
-            latency = (time.time() - start) * 1000
-            # HTTP 404 from a live service is still "up" in many cases
-            if e.code in (404, 400, 401):
-                return CheckResult(
-                    name=svc.name,
-                    ok=True,
-                    latency_ms=round(latency, 1),
-                    status=f"UP | HTTP {e.code}",
-                    details={"status_code": e.code},
-                )
-            return CheckResult(
-                name=svc.name,
-                ok=False,
-                latency_ms=round(latency, 1),
-                status=f"DOWN | HTTP {e.code}",
-                details={"status_code": e.code, "error": str(e)},
-            )
-        except Exception as e:
-            latency = (time.time() - start) * 1000
-            return CheckResult(
-                name=svc.name,
-                ok=False,
-                latency_ms=round(latency, 1),
-                status=f"DOWN | {type(e).__name__}",
-                details={"error": str(e)},
-            )
+        return check_fleet_service(svc)
 
     def check_all(self) -> List[CheckResult]:
         """Check all services."""
@@ -146,9 +329,9 @@ class HealthChecker:
         elif format == "markdown":
             lines = [
                 "# Fleet Health Report",
-                f"",
+                "",
                 f"**{up}/{len(results)} services UP** — {down} down",
-                f"",
+                "",
                 "| Service | Status | Latency | Details |",
                 "|---------|--------|---------|---------|",
             ]
@@ -167,16 +350,7 @@ class HealthChecker:
         return ""
 
 
-import os
-
-# --- Fleet defaults ---
-# FIX v1.0.1 — KimiAuditor
-# 1. The Lock v2 now probed on /status (was /, caused 404 mask).
-# 2. Matrix Bridge extract removed (response is a user map, not a room list).
-# 3. Added 4 missing services: Harbor, Service Guard, Task Queue, Steward.
-# FIX v1.0.2 — CCC
-# 4. Fleet host now configurable via COCAPN_HEALTH_HOST env var.
-
+# ── Fleet defaults ──────────────────────────────────────────────────
 _FLEET_HOST = os.environ.get("COCAPN_HEALTH_HOST", "147.224.38.131")
 
 FLEET_SERVICES = [
