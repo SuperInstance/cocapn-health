@@ -6,12 +6,13 @@ escalation when issues persist.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
-from cocapn_health.monitor import AgentState, HealthStatus
+from cocapn_health.monitor import AgentState
 
 
 class AlertSeverity(str, Enum):
@@ -56,7 +57,7 @@ class HealthAlert:
     state: AlertState = AlertState.PENDING
     message: str = ""
     fired_at: float = field(default_factory=time.time)
-    resolved_at: Optional[float] = None
+    resolved_at: float | None = None
     escalation_count: int = 0
     last_fire_time: float = 0.0
 
@@ -66,7 +67,7 @@ class HealthAlert:
         end = self.resolved_at or time.time()
         return round(end - self.fired_at, 2)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "rule_name": self.rule_name,
             "agent_name": self.agent_name,
@@ -133,8 +134,8 @@ class AlertManager:
     """
 
     def __init__(self) -> None:
-        self._rules: List[AlertRule] = []
-        self._alerts: Dict[str, HealthAlert] = {}  # key: f"{rule_name}:{agent_name}"
+        self._rules: list[AlertRule] = []
+        self._alerts: dict[str, HealthAlert] = {}  # key: f"{rule_name}:{agent_name}"
         self._last_evaluated: float = 0.0
 
     def add_rule(self, rule: AlertRule) -> None:
@@ -143,9 +144,9 @@ class AlertManager:
     def remove_rule(self, name: str) -> None:
         self._rules = [r for r in self._rules if r.name != name]
 
-    def evaluate(self, agent_states: Dict[str, AgentState]) -> List[HealthAlert]:
+    def evaluate(self, agent_states: dict[str, AgentState]) -> list[HealthAlert]:
         """Evaluate all rules against all agent states. Returns newly fired alerts."""
-        newly_fired: List[HealthAlert] = []
+        newly_fired: list[HealthAlert] = []
         now = time.time()
         self._last_evaluated = now
 
@@ -159,8 +160,7 @@ class AlertManager:
                     should_fire = True
                     if existing and existing.state in (AlertState.FIRING, AlertState.ESCALATED):
                         # Already firing — check escalation
-                        if state.consecutive_failures >= rule.escalation_after_failures:
-                            if existing.escalation_count == 0:
+                        if state.consecutive_failures >= rule.escalation_after_failures and existing.escalation_count == 0:
                                 existing.state = AlertState.ESCALATED
                                 existing.escalation_count = 1
                                 existing.message = self._render_message(
@@ -192,7 +192,7 @@ class AlertManager:
         return newly_fired
 
     @property
-    def active_alerts(self) -> List[HealthAlert]:
+    def active_alerts(self) -> list[HealthAlert]:
         """All currently firing or escalated alerts."""
         return [
             a for a in self._alerts.values()
@@ -200,11 +200,11 @@ class AlertManager:
         ]
 
     @property
-    def all_alerts(self) -> List[HealthAlert]:
+    def all_alerts(self) -> list[HealthAlert]:
         return list(self._alerts.values())
 
     @property
-    def rules(self) -> List[AlertRule]:
+    def rules(self) -> list[AlertRule]:
         return list(self._rules)
 
     def clear_resolved(self) -> int:

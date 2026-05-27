@@ -15,7 +15,8 @@ import os
 import sys
 import time
 from dataclasses import replace
-from cocapn_health import HealthChecker, ServiceDef, FLEET_SERVICES, check_system
+
+from cocapn_health import FLEET_SERVICES, HealthChecker, ServiceDef, check_system
 
 
 def main():

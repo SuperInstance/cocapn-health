@@ -15,13 +15,22 @@ from __future__ import annotations
 import json
 import threading
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse, parse_qs
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from cocapn_health import (
-    HealthChecker, ServiceDef, CheckResult, FLEET_SERVICES,
-    check_system, check_tcp, check_dns, check_http, check_disk, check_memory, check_cpu,
+    FLEET_SERVICES,
+    CheckResult,
+    HealthChecker,
+    ServiceDef,
+    check_cpu,
+    check_disk,
+    check_dns,
+    check_http,
+    check_memory,
+    check_system,
+    check_tcp,
 )
 
 
@@ -30,17 +39,17 @@ class HealthCache:
 
     def __init__(self, ttl: float = 30.0):
         self._ttl = ttl
-        self._fleet_results: List[CheckResult] = []
-        self._system_results: List[CheckResult] = []
+        self._fleet_results: list[CheckResult] = []
+        self._system_results: list[CheckResult] = []
         self._last_fleet: float = 0.0
         self._last_system: float = 0.0
         self._lock = threading.Lock()
         self._services = FLEET_SERVICES
 
-    def set_services(self, services: List[ServiceDef]) -> None:
+    def set_services(self, services: list[ServiceDef]) -> None:
         self._services = services
 
-    def get_fleet(self) -> List[CheckResult]:
+    def get_fleet(self) -> list[CheckResult]:
         now = time.time()
         with self._lock:
             if now - self._last_fleet > self._ttl or not self._fleet_results:
@@ -49,7 +58,7 @@ class HealthCache:
                 self._last_fleet = now
             return self._fleet_results
 
-    def get_system(self) -> List[CheckResult]:
+    def get_system(self) -> list[CheckResult]:
         now = time.time()
         with self._lock:
             if now - self._last_system > self._ttl or not self._system_results:
@@ -71,7 +80,7 @@ class HealthCache:
         return self._last_system
 
 
-def _results_to_dict(results: List[CheckResult]) -> List[Dict[str, Any]]:
+def _results_to_dict(results: list[CheckResult]) -> list[dict[str, Any]]:
     return [
         {
             "name": r.name,
@@ -181,7 +190,7 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 
 def run_api(host: str = "0.0.0.0", port: int = 8902, ttl: float = 30.0,
-            services: Optional[List[ServiceDef]] = None) -> None:
+            services: list[ServiceDef] | None = None) -> None:
     """Start the health API server."""
     cache = HealthCache(ttl=ttl)
     if services:

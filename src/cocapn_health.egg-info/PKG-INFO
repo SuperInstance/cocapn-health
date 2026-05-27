@@ -9,78 +9,24 @@ Project-URL: Repository, https://github.com/SuperInstance/cocapn-health
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Provides-Extra: dev
-Requires-Dist: pytest>=7.0; extra == "dev"
-Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
+Requires-Dist: ruff>=0.5.0; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"
+Requires-Dist: bandit>=1.7; extra == "dev"
+Requires-Dist: pip-audit>=2.7; extra == "dev"
 
 # cocapn-health
 
-Lightweight fleet service health checker for the **Cocapn Fleet**.
+Zero-dependency fleet service health checker.
 
 **Version:** 1.0.1 | **Tests:** 5 passing | **Lines:** ~400 | **Deps:** zero (stdlib only)
 
-Probe every fleet service, diagnose failures, report in Markdown/JSON/oneline, and optionally bridge into the fleet EventBus with thermal snapshots.
+Probe HTTP services, check system resources, report in Markdown/JSON/oneline, and optionally bridge into the fleet EventBus with thermal snapshots.
 
 ---
 
-## Table of Contents
-
-- [What is cocapn-health?](#what-is-cocapn-health)
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [EventBus Bridge](#eventbus-bridge)
-- [Example Output](#example-output)
-- [Architecture](#architecture)
-- [Tests](#tests)
-- [Fleet](#fleet)
-
----
-
-## What is cocapn-health?
-
-`cocapn-health` is a zero-dependency Python toolkit for monitoring the health of a distributed fleet of HTTP services. It was built for the Cocapn Fleet—a collection of ~18 microservices running on a single host—but works equally well for any set of HTTP endpoints you need to keep an eye on.
-
-Core idea: **maximum capability in minimum lines**. The entire runtime fits in a single Python file with no external dependencies. You can drop it into any environment (container, bare metal, CI pipeline) and immediately know which services are up, how fast they respond, and what metrics they expose.
-
----
-
-## Features
-
-### 🔌 HTTP Probes
-- **Parallel-ready** serial checking (easy to parallelise later)
-- **Customisable** per-service: host, port, path, method, timeout, expected status code, custom headers
-- **Smart status handling**: HTTP 404/400/401 from a live server is treated as "UP" (many fleet services expose no root handler)
-- **Auto-extracted metrics**: JSON responses are parsed automatically to pull out useful keys like `rooms`, `tiles`, `total_rules`, `total_matches`, `total_players`, `uptime_seconds`, `total_drills`, `streams`
-- **Custom extraction**: define your own JSON path extractions per service (`rooms: "rooms"`, `rules: "total_rules"`, etc.)
-
-### 🌡️ Thermal Snapshots
-- Optional `psutil` integration captures **CPU %**, **memory %**, and **available memory** on every check
-- Optional `nvidia-smi` integration captures **GPU utilisation %**, **GPU memory used/total**
-- Thermal data is attached to every EventBus event so you can correlate service health with system pressure
-
-### 🔗 EventBus Bridge
-- `EventBusHealthChecker` extends the base checker to emit fleet events:
-  - `service_down` — fired when a service transitions from UP → DOWN
-  - `service_recovered` — fired when a service transitions from DOWN → UP
-  - `fleet_health` — optional periodic snapshot of the whole fleet + thermal data
-- Integrates with the fleet `FleetEventBus` from the sunset ecosystem, but gracefully degrades if the bus is unavailable
-- EventBus failures are **non-fatal**—health checks continue regardless
-
-### 📊 Reporting Formats
-- **Markdown** (`md`) — human-readable table with emojis
-- **JSON** (`json`) — structured output for CI pipelines, dashboards, log aggregation
-- **Oneline** (`oneline`) — compact summary for monitoring tickers and alerts
-
-### ⚙️ CLI Modes
-- One-shot check (default)
-- **Watch mode** (`--watch N`) — recheck every N seconds
-- **Fail mode** (`--fail`) — exit with non-zero code if any service is down (CI-friendly)
-
----
-
-## Quick Start
-
-### Install
+## Install
 
 ```bash
 pip install cocapn-health
@@ -94,104 +40,296 @@ cd cocapn-health
 PYTHONPATH=src python -m cocapn_health.cli
 ```
 
-### CLI
+---
+
+## The 6 Health Checks
+
+### 1. HTTP Endpoint Check
+
+```python
+from cocapn_health import check_http
+
+result = check_http("http://147.224.38.131:8847/rooms", timeout=5.0)
+# CheckResult(name="http://147.224.38.131:8847/rooms", ok=True, latency_ms=23.1,
+#             status="UP | HTTP 200", details={"status_code": 200, "rooms": 42})
+
+# Require a specific status code
+result = check_http("http://example.com/api", expect_status=200)
+
+# Extract specific JSON fields from the response
+result = check_http(
+    "http://147.224.38.131:4044/stats",
+    extract={"matches": "total_matches", "players": "total_players"}
+)
+# details = {"matches": 1523, "players": 87, ...}
+
+# Custom headers
+result = check_http("http://api.internal/data", headers={"Authorization": "Bearer token"})
+```
+
+HTTP 404/400/401 from a live server is treated as "UP" — many fleet services expose no root handler.
+
+### 2. TCP Port Check
+
+```python
+from cocapn_health import check_tcp
+
+result = check_tcp("147.224.38.131", 4042, timeout=3.0)
+# CheckResult(name="147.224.38.131:4042", ok=True, latency_ms=12.3,
+#             status="UP | TCP connected")
+
+result = check_tcp("127.0.0.1", 59999, timeout=1.0)
+# CheckResult(name="127.0.0.1:59999", ok=False, latency_ms=1001.2,
+#             status="DOWN | timeout")
+```
+
+### 3. DNS Resolution Check
+
+```python
+from cocapn_health import check_dns
+
+result = check_dns("fleet.internal")
+# CheckResult(name="fleet.internal", ok=True, latency_ms=5.1,
+#             status="UP | DNS resolved",
+#             details={"addresses": ["10.0.1.5", "10.0.1.6"]})
+```
+
+### 4. Process Check
+
+```python
+from cocapn_health import check_process
+
+result = check_process("python3")
+# CheckResult(name="python3", ok=True, latency_ms=8.2,
+#             status="UP | 4 instances", details={"count": 4})
+
+result = check_process("nonexistent-daemon")
+# CheckResult(name="nonexistent-daemon", ok=False, ...,
+#             status="DOWN | not running")
+```
+
+Uses `pgrep -c` under the hood.
+
+### 5. Disk Space Check
+
+```python
+from cocapn_health import check_disk
+
+result = check_disk("/", min_percent_free=10.0)
+# CheckResult(name="/", ok=True, latency_ms=0.3,
+#             status="OK | 45.2% free",
+#             details={"total_gb": 500.0, "used_gb": 274.0, "free_gb": 226.0, "percent_free": 45.2})
+```
+
+### 6. Memory Check
+
+```python
+from cocapn_health import check_memory
+
+result = check_memory(min_percent_free=10.0)
+# CheckResult(name="memory", ok=True, latency_ms=0.5,
+#             status="OK | 62.1% available",
+#             details={"total_mb": 32768.0, "available_mb": 20350.0, "percent_available": 62.1})
+```
+
+Reads `/proc/meminfo` on Linux, `vm_stat` on macOS.
+
+### Bonus: CPU Load Check
+
+```python
+from cocapn_health import check_cpu
+
+result = check_cpu(max_percent=95.0)
+# CheckResult(name="cpu", ok=True, latency_ms=0.1,
+#             status="OK | load 1.23 (15%)",
+#             details={"load_1m": 1.23, "load_5m": 1.10, "load_15m": 0.95,
+#                      "cpu_count": 8, "utilization_percent": 15.4})
+```
+
+### All System Checks at Once
+
+```python
+from cocapn_health import check_system
+
+results = check_system()
+# [CheckResult("/", ...), CheckResult("memory", ...), CheckResult("cpu", ...)]
+```
+
+---
+
+## Fleet Service Checking
+
+### Define Services
+
+```python
+from cocapn_health import HealthChecker, ServiceDef, FLEET_SERVICES
+
+# Use the built-in fleet service list (18 services)
+checker = HealthChecker(FLEET_SERVICES)
+
+# Or define your own
+checker = HealthChecker([
+    ServiceDef("API", "10.0.1.5", 8080, "/health", timeout=3.0),
+    ServiceDef("Worker", "10.0.1.6", 8081, "/", extract={"jobs": "active_jobs"}),
+    ServiceDef("DB", "10.0.1.7", 5432, "/"),  # TCP-level check
+])
+```
+
+### Run Checks
+
+```python
+results = checker.check_all()
+
+for r in results:
+    status = "🟢" if r.ok else "🔴"
+    print(f"{status} {r.name}: {r.status} ({r.latency_ms:.0f}ms)")
+
+# Check a single service
+result = checker.check_one(checker.services[0])
+```
+
+### Reporting
+
+```python
+# Markdown table
+report = checker.report(results, format="md")
+# # Fleet Health Report
+# **17/18 services UP** — 1 down
+# | Service | Status | Latency | Details |
+# |---------|--------|---------|---------|
+# | 🟢 MUD v3 | UP | HTTP 200 | 23ms | rooms=42 |
+
+# JSON for CI pipelines
+report = checker.report(results, format="json")
+# {"summary": {"total": 18, "up": 17, "down": 1}, "services": [...]}
+
+# One-line for monitoring tickers
+report = checker.report(results, format="oneline")
+# Fleet: 17/18 up, 1 down
+```
+
+---
+
+## CLI
 
 ```bash
-# Check all fleet services (default: markdown report)
+# Check all fleet services (markdown report)
 cocapn-health
 
-# JSON output for CI pipelines
+# JSON output
 cocapn-health --format json
 
-# One-line summary for monitoring dashboards
+# One-line summary
 cocapn-health --format oneline
 
 # Watch mode: recheck every 30 seconds
 cocapn-health --watch 30
 
-# Exit with error code if any service is down
+# Exit non-zero if any service is down (CI-friendly)
 cocapn-health --fail
 
 # Override host for all fleet services
 cocapn-health --host 127.0.0.1
 
-# Or via environment variable
-COCAPN_HEALTH_HOST=127.0.0.1 cocapn-health
-
 # Custom services (name:host:port or name:port)
 cocapn-health --services api:127.0.0.1:8080,worker:8081
 
-# Custom host + custom services
-cocapn-health --host 192.168.1.100 --services api:8080,worker:8081
-```
-
-### Programmatic
-
-```python
-from cocapn_health import HealthChecker, ServiceDef
-
-checker = HealthChecker([
-    ServiceDef("MUD", "147.224.38.131", 4042, "/status"),
-    ServiceDef("PLATO", "147.224.38.131", 8847, "/rooms"),
-])
-
-results = checker.check_all()
-print(checker.report(results, format="json"))
-```
-
-### With EventBus + Thermal
-
-```python
-from cocapn_health import FLEET_SERVICES
-from cocapn_health.sunset_bridge import EventBusHealthChecker
-from nexus.fleet_event_bus import FleetEventBus
-
-bus = FleetEventBus()
-checker = EventBusHealthChecker(FLEET_SERVICES, bus=bus, emit_on_every_check=True)
-
-results = checker.check_all()
-# Automatically emits:
-#   - service_down / service_recovered on state transitions
-#   - fleet_health snapshot with thermal data every check
+# Environment variable override
+COCAPN_HEALTH_HOST=127.0.0.1 cocapn-health
 ```
 
 ---
 
-## Configuration
+## REST API
 
-### ServiceDef
-
-```python
-from cocapn_health import ServiceDef
-
-ServiceDef(
-    name="My Service",
-    host="127.0.0.1",
-    port=8080,
-    path="/health",
-    method="GET",
-    timeout=5.0,
-    expect_status=200,
-    headers={"Authorization": "Bearer token"},
-    extract={"version": "info.version", "users": "metrics.active_users"},
-)
+```bash
+# Start the API server
+python -m cocapn_health.api
+# Listening on 0.0.0.0:8899
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `name` | `str` | — | Human-readable service label |
-| `host` | `str` | — | Hostname or IP |
-| `port` | `int` | — | TCP port |
-| `path` | `str` | `"/"` | URL path to probe |
-| `method` | `str` | `"GET"` | HTTP method |
-| `timeout` | `float` | `5.0` | Request timeout in seconds |
-| `expect_status` | `int` | `None` | If set, require this exact status code |
-| `headers` | `dict` | `{}` | Extra HTTP headers |
-| `extract` | `dict` | `None` | JSON key → dot-path mapping for response extraction |
+### Endpoints
 
-### Built-in Fleet Services
+```bash
+# Full health report: fleet + system checks
+curl http://localhost:8899/health
+# {
+#   "status": "healthy",
+#   "fleet": { ... },
+#   "system": { "checks": [...] }
+# }
 
-The default `FLEET_SERVICES` checks 18 services on `147.224.38.131`:
+# Fleet services only
+curl http://localhost:8899/fleet
+# {
+#   "services": [...],
+#   "summary": {"total": 18, "up": 17, "down": 1}
+# }
+
+# System checks only (disk, memory, CPU)
+curl http://localhost:8899/system
+# {"checks": [CheckResult, CheckResult, CheckResult]}
+
+# Individual system checks
+curl http://localhost:8899/check/cpu
+curl http://localhost:8899/check/memory
+curl http://localhost:8899/check/disk
+
+# Clear cached results and force recheck
+curl http://localhost:8899/refresh
+# {"status": "cache cleared"}
+```
+
+### Programmatic API Server
+
+```python
+from cocapn_health.api import run_api, HealthCache
+from cocapn_health import FLEET_SERVICES
+
+# Start on custom host/port
+run_api("0.0.0.0", 14001, timeout=5.0, services=FLEET_SERVICES)
+
+# Or use the cache directly
+cache = HealthCache(ttl=30.0)  # results valid for 30 seconds
+cache.set_services(FLEET_SERVICES)
+results = cache.get_system()
+```
+
+---
+
+## EventBus Bridge
+
+Wraps the base checker with event emission for fleet state transitions:
+
+```python
+from cocapn_health import FLEET_SERVICES
+from cocapn_health.sunset_bridge import EventBusHealthChecker
+from nexus.fleet_event_bus import FleetEventBus  # optional
+
+bus = FleetEventBus()
+checker = EventBusHealthChecker(
+    FLEET_SERVICES,
+    bus=bus,
+    emit_on_every_check=True,  # emit periodic fleet_health snapshots
+)
+
+results = checker.check_all()
+# Emits:
+#   service_down   — when a service transitions UP → DOWN
+#   service_recovered — when a service transitions DOWN → UP
+#   fleet_health   — full fleet snapshot + thermal data (if emit_on_every_check)
+```
+
+Optional integrations (graceful degradation — checks continue if missing):
+- `psutil` for CPU/memory thermal snapshots
+- `nvidia-smi` for GPU utilization
+- `nexus.fleet_event_bus` for event emission
+
+---
+
+## Built-in Fleet Services
+
+The default `FLEET_SERVICES` checks 18 services:
 
 | Service | Port | Path | Extracted Metrics |
 |---------|------|------|-------------------|
@@ -216,129 +354,23 @@ The default `FLEET_SERVICES` checks 18 services on `147.224.38.131`:
 
 ---
 
-## EventBus Bridge
-
-The `sunset_bridge.py` module provides `EventBusHealthChecker`, which wraps the base checker with event emission.
-
-### Requirements
-- `nexus.fleet_event_bus` (optional—if missing, events are silently skipped)
-- `psutil` (optional—for thermal snapshots)
-- `nvidia-smi` (optional—for GPU metrics)
-
-### Event Schema
-
-**`service_down`**
-```json
-{
-  "type": "service_down",
-  "service": "Arena",
-  "status": "DOWN | HTTP 503",
-  "latency_ms": 42.3,
-  "details": {"status_code": 503, "error": "..."},
-  "thermal": {
-    "timestamp": 1716480000.0,
-    "cpu_percent": 12.5,
-    "memory_percent": 45.2,
-    "memory_available_mb": 8192.0,
-    "gpu_util_percent": 30.0,
-    "gpu_memory_used_mb": 2048.0,
-    "gpu_memory_total_mb": 8192.0
-  }
-}
-```
-
-**`fleet_health`** (when `emit_on_every_check=True`)
-```json
-{
-  "type": "fleet_health",
-  "total": 18,
-  "up": 17,
-  "down": 1,
-  "services_down": ["Arena"],
-  "thermal": { ... }
-}
-```
-
----
-
-## Example Output
-
-### Markdown (default)
-
-```markdown
-# Fleet Health Report
-
-**17/18 services UP** — 1 down
-
-| Service | Status | Latency | Details |
-|---------|--------|---------|---------|
-| 🟢 MUD v3 | UP \| HTTP 200 | 23ms | status_code=200 latency_ms=23.1 rooms=42 |
-| 🟢 The Lock v2 | UP \| HTTP 200 | 18ms | status_code=200 latency_ms=18.3 strategies=12 |
-| 🔴 Arena | DOWN \| HTTP 503 | 42ms | status_code=503 error=... |
-...
-```
-
-### JSON
-
-```json
-{
-  "summary": {
-    "total": 18,
-    "up": 17,
-    "down": 1
-  },
-  "checked_at": "2024-05-23T15:06:00+00:00",
-  "services": [
-    {
-      "name": "MUD v3",
-      "ok": true,
-      "status": "UP | HTTP 200",
-      "latency_ms": 23.1,
-      "details": {
-        "status_code": 200,
-        "latency_ms": 23.1,
-        "rooms": 42
-      }
-    },
-    {
-      "name": "Arena",
-      "ok": false,
-      "status": "DOWN | HTTP 503",
-      "latency_ms": 42.3,
-      "details": {
-        "status_code": 503,
-        "error": "Service Unavailable"
-      }
-    }
-  ]
-}
-```
-
-### Oneline
-
-```
-Fleet: 17/18 up, 1 slow ⚠️ 1 down
-```
-
----
-
 ## Architecture
 
 ```
 cocapn_health/
 ├── src/cocapn_health/
-│   ├── __init__.py         # HealthChecker, ServiceDef, CheckResult, FLEET_SERVICES
-│   ├── cli.py              # argparse CLI (json | md | oneline, watch, fail)
+│   ├── __init__.py         # HealthChecker, ServiceDef, CheckResult, FLEET_SERVICES,
+│   │                       # check_http, check_tcp, check_dns, check_process,
+│   │                       # check_disk, check_memory, check_cpu, check_system
+│   ├── cli.py              # argparse CLI
+│   ├── api.py              # REST API server + HealthCache
 │   └── sunset_bridge.py    # EventBusHealthChecker + thermal snapshots
 └── tests/
-    └── test_health.py      # 5 unit tests
+    ├── test_health.py
+    ├── test_api.py
+    ├── test_cli.py
+    └── test_system_checks.py
 ```
-
-Design principles:
-1. **Zero dependencies** for core health checking (stdlib only)
-2. **Optional enrichment** via `psutil` and `nvidia-smi`
-3. **Graceful degradation** — EventBus or thermal failures never break checks
-4. **Minimal surface area** — ~400 lines total, easy to audit and extend
 
 ---
 

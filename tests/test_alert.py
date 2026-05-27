@@ -1,16 +1,20 @@
 """Tests for cocapn_health.alert — AlertManager, AlertRule, HealthAlert, conditions."""
 import time
-from unittest.mock import patch
-
-import pytest
 
 from cocapn_health import CheckResult
 from cocapn_health.alert import (
-    AlertManager, AlertRule, AlertSeverity, AlertState, HealthAlert,
-    always_healthy, consecutive_failures, high_latency, is_down, low_availability,
+    AlertManager,
+    AlertRule,
+    AlertSeverity,
+    AlertState,
+    HealthAlert,
+    always_healthy,
+    consecutive_failures,
+    high_latency,
+    is_down,
+    low_availability,
 )
 from cocapn_health.monitor import AgentState
-
 
 # ── Helpers ───────────────────────────────────────────────────────
 

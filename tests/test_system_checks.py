@@ -1,17 +1,21 @@
 """Tests for system health checks: TCP, DNS, disk, memory, CPU."""
 import os
-import socket
 import threading
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
 from cocapn_health import (
-    check_tcp, check_dns, check_disk, check_memory, check_cpu,
-    check_http, check_system, CheckResult,
+    CheckResult,
+    check_cpu,
+    check_disk,
+    check_dns,
+    check_http,
+    check_memory,
+    check_system,
+    check_tcp,
 )
-
 
 # ── TCP Check ──────────────────────────────────────────────────────
 

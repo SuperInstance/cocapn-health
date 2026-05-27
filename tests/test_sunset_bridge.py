@@ -5,7 +5,6 @@ Run: pytest tests/test_sunset_bridge.py -v
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,9 +13,7 @@ from cocapn_health import CheckResult, ServiceDef
 from cocapn_health.sunset_bridge import (
     EventBusHealthChecker,
     _thermal_snapshot,
-    _HAS_BUS,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────
 

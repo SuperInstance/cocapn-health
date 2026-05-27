@@ -1,9 +1,7 @@
 """Tests for cocapn_health.check — CustomCheck, CheckRegistry, CheckBuilder."""
-import pytest
 
 from cocapn_health import CheckResult
 from cocapn_health.check import CheckBuilder, CheckRegistry, CustomCheck
-
 
 # ── CustomCheck ───────────────────────────────────────────────────
 

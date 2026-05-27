@@ -2,13 +2,13 @@
 import json
 import threading
 import time
-from urllib.request import urlopen, Request
 from urllib.error import HTTPError
+from urllib.request import urlopen
 
 import pytest
 
-from cocapn_health.api import run_api, HealthCache
 from cocapn_health import FLEET_SERVICES
+from cocapn_health.api import HealthCache, run_api
 
 
 @pytest.fixture(scope="module")

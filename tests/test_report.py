@@ -2,9 +2,7 @@
 import json
 from unittest.mock import patch
 
-import pytest
-
-from cocapn_health import CheckResult, ServiceDef
+from cocapn_health import ServiceDef
 from cocapn_health.alert import AlertManager, AlertRule, AlertSeverity, is_down
 from cocapn_health.monitor import HealthMonitor, HealthStatus
 from cocapn_health.report import HealthReport

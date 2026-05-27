@@ -1,12 +1,10 @@
 """Tests for cocapn_health.monitor — HealthMonitor, AgentState, HealthStatus."""
-import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from cocapn_health import CheckResult, ServiceDef, HealthChecker
+from cocapn_health import CheckResult, ServiceDef
 from cocapn_health.monitor import AgentState, HealthMonitor, HealthStatus
-
 
 # ── Helpers ───────────────────────────────────────────────────────
 

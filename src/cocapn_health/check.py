@@ -5,11 +5,10 @@ Provides a registry for custom health checks and fluent builders.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
 
 from cocapn_health import CheckResult
-
 
 CheckFunc = Callable[[], CheckResult]
 
@@ -27,7 +26,7 @@ class CustomCheck:
     name: str
     func: CheckFunc
     timeout: float = 5.0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     def run(self) -> CheckResult:
         """Execute the check and return the result."""
@@ -69,9 +68,9 @@ class CheckRegistry:
     """
 
     def __init__(self) -> None:
-        self._checks: Dict[str, CustomCheck] = {}
+        self._checks: dict[str, CustomCheck] = {}
 
-    def register(self, name: str, timeout: float = 5.0, tags: Optional[List[str]] = None) -> Callable:
+    def register(self, name: str, timeout: float = 5.0, tags: list[str] | None = None) -> Callable:
         """Decorator to register a function as a custom check."""
         def decorator(func: CheckFunc) -> CheckFunc:
             self._checks[name] = CustomCheck(
@@ -98,27 +97,27 @@ class CheckRegistry:
             )
         return check.run()
 
-    def run_all(self) -> List[CheckResult]:
+    def run_all(self) -> list[CheckResult]:
         """Run all registered checks."""
         return [check.run() for check in self._checks.values()]
 
-    def run_tagged(self, tag: str) -> List[CheckResult]:
+    def run_tagged(self, tag: str) -> list[CheckResult]:
         """Run only checks that have the given tag."""
         return [
             check.run() for check in self._checks.values()
             if tag in check.tags
         ]
 
-    def run_names(self, names: List[str]) -> List[CheckResult]:
+    def run_names(self, names: list[str]) -> list[CheckResult]:
         """Run checks by specific names. Unknown names produce error results."""
         return [self.run(name) for name in names]
 
     @property
-    def check_names(self) -> List[str]:
+    def check_names(self) -> list[str]:
         return list(self._checks.keys())
 
     @property
-    def checks(self) -> Dict[str, CustomCheck]:
+    def checks(self) -> dict[str, CustomCheck]:
         return dict(self._checks)
 
     def __len__(self) -> int:
@@ -145,13 +144,13 @@ class CheckBuilder:
     def __init__(self, name: str) -> None:
         self._name = name
         self._timeout: float = 5.0
-        self._tags: List[str] = []
+        self._tags: list[str] = []
 
-    def timeout(self, seconds: float) -> "CheckBuilder":
+    def timeout(self, seconds: float) -> CheckBuilder:
         self._timeout = seconds
         return self
 
-    def tag(self, *tags: str) -> "CheckBuilder":
+    def tag(self, *tags: str) -> CheckBuilder:
         self._tags.extend(tags)
         return self
 

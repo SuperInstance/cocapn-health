@@ -7,11 +7,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from cocapn_health import CheckResult
-from cocapn_health.alert import AlertManager, AlertSeverity, AlertState, HealthAlert
-from cocapn_health.monitor import AgentState, HealthMonitor, HealthStatus
+from cocapn_health.alert import AlertManager
+from cocapn_health.monitor import HealthMonitor, HealthStatus
 
 
 @dataclass
@@ -25,23 +24,23 @@ class HealthReport:
     total_services: int = 0
     services_up: int = 0
     services_down: int = 0
-    failing: List[str] = field(default_factory=list)
-    agent_summaries: List[Dict[str, Any]] = field(default_factory=list)
-    alerts: List[Dict[str, Any]] = field(default_factory=list)
-    system_checks: List[Dict[str, Any]] = field(default_factory=list)
+    failing: list[str] = field(default_factory=list)
+    agent_summaries: list[dict[str, Any]] = field(default_factory=list)
+    alerts: list[dict[str, Any]] = field(default_factory=list)
+    system_checks: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
     def from_monitor(
         cls,
         monitor: HealthMonitor,
-        alert_manager: Optional[AlertManager] = None,
-    ) -> "HealthReport":
+        alert_manager: AlertManager | None = None,
+    ) -> HealthReport:
         """Create a report from a HealthMonitor (and optional AlertManager)."""
         summary = monitor.summary
         agent_summaries = [state.to_dict() for state in monitor.agent_states.values()]
         system_summaries = [state.to_dict() for state in monitor.system_states.values()]
 
-        alert_list: List[Dict[str, Any]] = []
+        alert_list: list[dict[str, Any]] = []
         if alert_manager:
             alert_list = [a.to_dict() for a in alert_manager.active_alerts]
 
@@ -59,7 +58,7 @@ class HealthReport:
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "status": self.status.value,
             "checked_at": self.checked_at,
@@ -74,7 +73,7 @@ class HealthReport:
 
     def to_markdown(self) -> str:
         lines = [
-            f"# Health Report",
+            "# Health Report",
             "",
             f"**Status:** {self.status.value.upper()} | "
             f"**{self.services_up}/{self.total_services}** services up | "

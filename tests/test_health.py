@@ -1,10 +1,7 @@
 """Tests for cocapn-health."""
 import json
-import tempfile
-from pathlib import Path
-import pytest
 
-from cocapn_health import HealthChecker, ServiceDef, CheckResult
+from cocapn_health import CheckResult, HealthChecker, ServiceDef
 
 
 def test_check_local_service():

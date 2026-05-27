@@ -1,6 +1,4 @@
 import json
-import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -58,6 +56,8 @@ class TestCLIBasic:
     def test_env_var_host_override(self, monkeypatch):
         """Test COCAPN_HEALTH_HOST env var overrides default host."""
         monkeypatch.setenv("COCAPN_HEALTH_HOST", "192.168.1.100")
-        # The env var is read in main() — we verify the logic exists
         import cocapn_health.cli as cli_module
-        assert "os.environ.get" in cli_module.main.__code__.co_names or True  # Logic exists implicitly
+        src = Path(cli_module.__file__).read_text()
+        assert "COCAPN_HEALTH_HOST" in src
+        # Verify os module is imported (used in _resolve_services)
+        assert "import os" in src

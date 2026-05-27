@@ -11,9 +11,8 @@ Usage::
 """
 from __future__ import annotations
 
-import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from cocapn_health import CheckResult, HealthChecker, ServiceDef
 
@@ -43,14 +42,14 @@ class EventBusHealthChecker(HealthChecker):
 
     def __init__(
         self,
-        services: List[ServiceDef],
+        services: list[ServiceDef],
         bus: Any | None = None,
         emit_on_every_check: bool = False,
     ) -> None:
         super().__init__(services)
         self._bus = bus
         self._emit_on_every_check = emit_on_every_check
-        self._last_states: Dict[str, bool] = {}
+        self._last_states: dict[str, bool] = {}
 
     # ── Overrides ───────────────────────────────────────────────────
 
@@ -60,7 +59,7 @@ class EventBusHealthChecker(HealthChecker):
         self._maybe_emit(svc.name, result)
         return result
 
-    def check_all(self) -> List[CheckResult]:
+    def check_all(self) -> list[CheckResult]:
         """Check all services; emit events; optionally emit fleet_health snapshot."""
         results = super().check_all()
 
@@ -124,7 +123,7 @@ class EventBusHealthChecker(HealthChecker):
             },
         )
 
-    def _emit(self, event_type: str, payload: Dict[str, Any]) -> None:
+    def _emit(self, event_type: str, payload: dict[str, Any]) -> None:
         if self._bus is None:
             return
         try:
@@ -137,9 +136,9 @@ class EventBusHealthChecker(HealthChecker):
 
 # ── Thermal snapshot helper ───────────────────────────────────────
 
-def _thermal_snapshot() -> Dict[str, Any]:
+def _thermal_snapshot() -> dict[str, Any]:
     """Return CPU / memory / thermal pressure metrics."""
-    snapshot: Dict[str, Any] = {"timestamp": time.time()}
+    snapshot: dict[str, Any] = {"timestamp": time.time()}
 
     if _HAS_PSUTIL:
         try:

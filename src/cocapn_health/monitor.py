@@ -8,9 +8,9 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
-from cocapn_health import CheckResult, ServiceDef, HealthChecker, check_system
+from cocapn_health import CheckResult, HealthChecker, ServiceDef, check_system
 
 
 class HealthStatus(str, Enum):
@@ -24,14 +24,14 @@ class HealthStatus(str, Enum):
 class AgentState:
     """Tracks the health state of a single agent/service over time."""
     name: str
-    last_ok: Optional[bool] = None
+    last_ok: bool | None = None
     consecutive_failures: int = 0
     consecutive_successes: int = 0
     total_checks: int = 0
     total_failures: int = 0
     last_check_time: float = 0.0
-    last_result: Optional[CheckResult] = None
-    history: List[CheckResult] = field(default_factory=list)
+    last_result: CheckResult | None = None
+    history: list[CheckResult] = field(default_factory=list)
 
     _MAX_HISTORY: int = field(default=100, repr=False)
 
@@ -68,7 +68,7 @@ class AgentState:
             return 0.0
         return round(sum(r.latency_ms for r in self.history) / len(self.history), 2)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "last_ok": self.last_ok,
@@ -95,7 +95,7 @@ class HealthMonitor:
 
     def __init__(
         self,
-        services: List[ServiceDef],
+        services: list[ServiceDef],
         degraded_threshold: float = 0.5,
         unhealthy_threshold: float = 0.2,
         include_system: bool = False,
@@ -105,14 +105,14 @@ class HealthMonitor:
         self._degraded_threshold = degraded_threshold
         self._unhealthy_threshold = unhealthy_threshold
         self._include_system = include_system
-        self._agent_states: Dict[str, AgentState] = {
+        self._agent_states: dict[str, AgentState] = {
             svc.name: AgentState(name=svc.name) for svc in services
         }
-        self._system_states: Dict[str, AgentState] = {}
+        self._system_states: dict[str, AgentState] = {}
         self._check_count: int = 0
         self._last_check_time: float = 0.0
 
-    def check(self) -> List[CheckResult]:
+    def check(self) -> list[CheckResult]:
         """Run a health check cycle and update all agent states."""
         results = self._checker.check_all()
         self._check_count += 1
@@ -151,12 +151,12 @@ class HealthMonitor:
             return HealthStatus.UNHEALTHY
 
     @property
-    def agent_states(self) -> Dict[str, AgentState]:
+    def agent_states(self) -> dict[str, AgentState]:
         """Current state of all tracked agents."""
         return dict(self._agent_states)
 
     @property
-    def system_states(self) -> Dict[str, AgentState]:
+    def system_states(self) -> dict[str, AgentState]:
         """Current state of system checks."""
         return dict(self._system_states)
 
@@ -165,12 +165,12 @@ class HealthMonitor:
         return self._check_count
 
     @property
-    def failing_agents(self) -> List[str]:
+    def failing_agents(self) -> list[str]:
         """Names of agents currently failing."""
         return [name for name, state in self._agent_states.items() if state.last_ok is False]
 
     @property
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         total = len(self._services)
         up = sum(1 for s in self._agent_states.values() if s.last_ok is True)
         down = total - up

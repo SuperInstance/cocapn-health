@@ -13,15 +13,15 @@ Modules:
     cocapn_health.sunset_bridge — EventBus integration
 """
 import json
-import urllib.request
-import socket
-import time
 import os
-import subprocess
 import shutil
-from typing import Dict, List, Any, Optional, Callable
+import socket
+import subprocess
+import time
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Any
 
 
 @dataclass
@@ -33,9 +33,9 @@ class ServiceDef:
     path: str = "/"
     method: str = "GET"
     timeout: float = 5.0
-    expect_status: Optional[int] = None
-    headers: Dict[str, str] = field(default_factory=dict)
-    extract: Optional[Dict[str, str]] = None  # JSON keys to extract from response
+    expect_status: int | None = None
+    headers: dict[str, str] = field(default_factory=dict)
+    extract: dict[str, str] | None = None  # JSON keys to extract from response
 
 
 @dataclass
@@ -45,15 +45,15 @@ class CheckResult:
     ok: bool
     latency_ms: float
     status: str
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
     checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # ── Health Check Functions ──────────────────────────────────────────
 
-def check_http(url: str, method: str = "GET", headers: Optional[Dict[str, str]] = None,
-               timeout: float = 5.0, expect_status: Optional[int] = None,
-               extract: Optional[Dict[str, str]] = None) -> CheckResult:
+def check_http(url: str, method: str = "GET", headers: dict[str, str] | None = None,
+               timeout: float = 5.0, expect_status: int | None = None,
+               extract: dict[str, str] | None = None) -> CheckResult:
     """Check an HTTP endpoint."""
     start = time.time()
     hdrs = headers or {}
@@ -66,7 +66,7 @@ def check_http(url: str, method: str = "GET", headers: Optional[Dict[str, str]] 
             status_code = resp.status
             body = resp.read(2048).decode("utf-8", errors="replace")
 
-            details: Dict[str, Any] = {"status_code": status_code, "latency_ms": round(latency, 1)}
+            details: dict[str, Any] = {"status_code": status_code, "latency_ms": round(latency, 1)}
             try:
                 data = json.loads(body)
                 if extract:
@@ -124,7 +124,7 @@ def check_dns(hostname: str, timeout: float = 5.0) -> CheckResult:
         socket.setdefaulttimeout(timeout)
         addrs = socket.getaddrinfo(hostname, None)
         latency = (time.time() - start) * 1000
-        ips = list(set(addr[4][0] for addr in addrs))[:5]
+        ips = list({addr[4][0] for addr in addrs})[:5]
         return CheckResult(name=hostname, ok=True, latency_ms=round(latency, 1),
                            status="UP | DNS resolved", details={"addresses": ips})
     except Exception as e:
@@ -178,7 +178,7 @@ def check_memory(min_percent_free: float = 10.0) -> CheckResult:
     start = time.time()
     try:
         if os.path.exists("/proc/meminfo"):
-            info: Dict[str, float] = {}
+            info: dict[str, float] = {}
             with open("/proc/meminfo") as f:
                 for line in f:
                     parts = line.split()
@@ -244,7 +244,7 @@ def check_cpu(max_percent: float = 95.0) -> CheckResult:
                            status=f"ERROR | {type(e).__name__}", details={"error": str(e)})
 
 
-def check_system() -> List[CheckResult]:
+def check_system() -> list[CheckResult]:
     """Run all system-level checks: disk, memory, CPU."""
     return [check_disk(), check_memory(), check_cpu()]
 
@@ -263,7 +263,7 @@ def check_fleet_service(service: ServiceDef) -> CheckResult:
             status_code = resp.status
             body = resp.read(2048).decode("utf-8", errors="replace")
 
-            details: Dict[str, Any] = {"status_code": status_code, "latency_ms": round(latency, 1)}
+            details: dict[str, Any] = {"status_code": status_code, "latency_ms": round(latency, 1)}
             try:
                 data = json.loads(body)
                 if service.extract:
@@ -303,19 +303,19 @@ def check_fleet_service(service: ServiceDef) -> CheckResult:
 class HealthChecker:
     """Check fleet services and produce reports."""
 
-    def __init__(self, services: List[ServiceDef]):
+    def __init__(self, services: list[ServiceDef]):
         self.services = services
 
     def check_one(self, svc: ServiceDef) -> CheckResult:
         """Check a single service."""
         return check_fleet_service(svc)
 
-    def check_all(self) -> List[CheckResult]:
+    def check_all(self) -> list[CheckResult]:
         """Check all services."""
         return [self.check_one(svc) for svc in self.services]
 
     @staticmethod
-    def report(results: List[CheckResult], format: str = "json") -> str:
+    def report(results: list[CheckResult], format: str = "json") -> str:
         """Generate a report string."""
         up = sum(1 for r in results if r.ok)
         down = len(results) - up
