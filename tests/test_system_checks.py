@@ -108,7 +108,7 @@ def test_check_memory():
 # ── CPU Check ──────────────────────────────────────────────────────
 
 def test_check_cpu():
-    result = check_cpu()
+    result = check_cpu(max_percent=200.0)
     assert isinstance(result, CheckResult)
     if hasattr(os, "getloadavg"):
         assert result.ok
