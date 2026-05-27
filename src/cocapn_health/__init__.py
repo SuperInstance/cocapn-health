@@ -1,6 +1,16 @@
 """cocapn_health — Lightweight fleet service health checker.
 
 Maximum capability in minimum lines. Zero dependencies beyond stdlib.
+
+Modules:
+    cocapn_health           — Core check functions, HealthChecker, dataclasses
+    cocapn_health.monitor   — HealthMonitor with status tracking over time
+    cocapn_health.alert     — AlertManager with severity and escalation
+    cocapn_health.report    — HealthReport with JSON/Markdown/oneline output
+    cocapn_health.check     — Custom check registry and builder
+    cocapn_health.api       — REST API server
+    cocapn_health.cli       — Command-line interface
+    cocapn_health.sunset_bridge — EventBus integration
 """
 import json
 import urllib.request
