@@ -1,4 +1,5 @@
 """Tests for cocapn_health.report — HealthReport generation."""
+
 import json
 from unittest.mock import patch
 
@@ -11,12 +12,16 @@ from cocapn_health.report import HealthReport
 def _mock_urlopen_up(*args, **kwargs):
     class MockResp:
         status = 200
+
         def read(self, n=-1):
             return b'{"ok": true}'
+
         def __enter__(self):
             return self
+
         def __exit__(self, *args):
             pass
+
     return MockResp()
 
 
@@ -25,7 +30,10 @@ def _mock_urlopen_down(*args, **kwargs):
 
 
 def make_services(n=3):
-    return [ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1) for i in range(n)]
+    return [
+        ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1)
+        for i in range(n)
+    ]
 
 
 class TestHealthReportManual:
@@ -54,7 +62,9 @@ class TestHealthReportManual:
         assert "svc-a" in d["failing"]
 
     def test_to_json(self):
-        report = HealthReport(status=HealthStatus.HEALTHY, total_services=1, services_up=1)
+        report = HealthReport(
+            status=HealthStatus.HEALTHY, total_services=1, services_up=1
+        )
         j = report.to_json()
         data = json.loads(j)
         assert data["status"] == "healthy"
@@ -66,8 +76,13 @@ class TestHealthReportManual:
             services_up=3,
             services_down=0,
             agent_summaries=[
-                {"name": "svc-a", "last_ok": True, "availability": 100.0,
-                 "avg_latency_ms": 12.0, "consecutive_failures": 0},
+                {
+                    "name": "svc-a",
+                    "last_ok": True,
+                    "availability": 100.0,
+                    "avg_latency_ms": 12.0,
+                    "consecutive_failures": 0,
+                },
             ],
         )
         md = report.to_markdown()
@@ -93,7 +108,13 @@ class TestHealthReportManual:
             services_up=0,
             services_down=1,
             failing=["svc-x"],
-            alerts=[{"severity": "critical", "message": "svc-x is down", "rule_name": "down"}],
+            alerts=[
+                {
+                    "severity": "critical",
+                    "message": "svc-x is down",
+                    "rule_name": "down",
+                }
+            ],
         )
         md = report.to_markdown()
         assert "🚨 Active Alerts" in md
@@ -142,7 +163,11 @@ class TestHealthReportManual:
             services_up=1,
             system_checks=[
                 {"name": "cpu", "last_ok": True, "last_status": "OK | load 0.5"},
-                {"name": "memory", "last_ok": True, "last_status": "OK | 45.2% available"},
+                {
+                    "name": "memory",
+                    "last_ok": True,
+                    "last_status": "OK | 45.2% available",
+                },
             ],
         )
         md = report.to_markdown()

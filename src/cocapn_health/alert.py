@@ -3,6 +3,7 @@
 Define when alerts should fire based on failure patterns, and track
 escalation when issues persist.
 """
+
 from __future__ import annotations
 
 import time
@@ -40,6 +41,7 @@ class AlertRule:
         escalation_after_failures: After this many consecutive failures, escalate severity.
         message_template: Optional template string. Use {name}, {failures}, {availability}.
     """
+
     name: str
     condition: Callable[[AgentState], bool]
     severity: AlertSeverity = AlertSeverity.WARNING
@@ -51,6 +53,7 @@ class AlertRule:
 @dataclass
 class HealthAlert:
     """An active or resolved alert instance."""
+
     rule_name: str
     agent_name: str
     severity: AlertSeverity
@@ -74,10 +77,13 @@ class HealthAlert:
             "severity": self.severity.value,
             "state": self.state.value,
             "message": self.message,
-            "fired_at": datetime.fromtimestamp(self.fired_at, tz=timezone.utc).isoformat(),
+            "fired_at": datetime.fromtimestamp(
+                self.fired_at, tz=timezone.utc
+            ).isoformat(),
             "resolved_at": (
                 datetime.fromtimestamp(self.resolved_at, tz=timezone.utc).isoformat()
-                if self.resolved_at else None
+                if self.resolved_at
+                else None
             ),
             "duration_seconds": self.duration_seconds,
             "escalation_count": self.escalation_count,
@@ -86,6 +92,7 @@ class HealthAlert:
 
 # ── Built-in alert conditions ─────────────────────────────────────
 
+
 def is_down(state: AgentState) -> bool:
     """Alert when the agent is currently down."""
     return state.last_ok is False
@@ -93,22 +100,28 @@ def is_down(state: AgentState) -> bool:
 
 def consecutive_failures(threshold: int = 3) -> Callable[[AgentState], bool]:
     """Alert after N consecutive failures."""
+
     def _check(state: AgentState) -> bool:
         return state.consecutive_failures >= threshold
+
     return _check
 
 
 def low_availability(threshold: float = 90.0) -> Callable[[AgentState], bool]:
     """Alert when availability drops below threshold percent."""
+
     def _check(state: AgentState) -> bool:
         return state.total_checks >= 3 and state.availability < threshold
+
     return _check
 
 
 def high_latency(threshold_ms: float = 5000.0) -> Callable[[AgentState], bool]:
     """Alert when average latency exceeds threshold."""
+
     def _check(state: AgentState) -> bool:
         return state.total_checks >= 2 and state.avg_latency_ms > threshold_ms
+
     return _check
 
 
@@ -118,6 +131,7 @@ def always_healthy(state: AgentState) -> bool:
 
 
 # ── Alert manager ──────────────────────────────────────────────────
+
 
 class AlertManager:
     """Evaluates alert rules against agent states and manages alert lifecycle.
@@ -158,19 +172,27 @@ class AlertManager:
 
                 if triggered:
                     should_fire = True
-                    if existing and existing.state in (AlertState.FIRING, AlertState.ESCALATED):
+                    if existing and existing.state in (
+                        AlertState.FIRING,
+                        AlertState.ESCALATED,
+                    ):
                         # Already firing — check escalation
-                        if state.consecutive_failures >= rule.escalation_after_failures and existing.escalation_count == 0:
-                                existing.state = AlertState.ESCALATED
-                                existing.escalation_count = 1
-                                existing.message = self._render_message(
-                                    rule, state, " (ESCALATED)"
-                                )
+                        if (
+                            state.consecutive_failures >= rule.escalation_after_failures
+                            and existing.escalation_count == 0
+                        ):
+                            existing.state = AlertState.ESCALATED
+                            existing.escalation_count = 1
+                            existing.message = self._render_message(
+                                rule, state, " (ESCALATED)"
+                            )
                         # Check cooldown
                         if now - existing.last_fire_time < rule.cooldown_seconds:
                             should_fire = False
 
-                    if should_fire and (existing is None or existing.state == AlertState.RESOLVED):
+                    if should_fire and (
+                        existing is None or existing.state == AlertState.RESOLVED
+                    ):
                         alert = HealthAlert(
                             rule_name=rule.name,
                             agent_name=agent_name,
@@ -179,12 +201,17 @@ class AlertManager:
                             message=self._render_message(rule, state),
                             fired_at=now if existing is None else existing.fired_at,
                             last_fire_time=now,
-                            escalation_count=existing.escalation_count if existing else 0,
+                            escalation_count=(
+                                existing.escalation_count if existing else 0
+                            ),
                         )
                         self._alerts[key] = alert
                         newly_fired.append(alert)
 
-                elif existing and existing.state in (AlertState.FIRING, AlertState.ESCALATED):
+                elif existing and existing.state in (
+                    AlertState.FIRING,
+                    AlertState.ESCALATED,
+                ):
                     # Condition no longer true — resolve
                     existing.state = AlertState.RESOLVED
                     existing.resolved_at = now
@@ -195,7 +222,8 @@ class AlertManager:
     def active_alerts(self) -> list[HealthAlert]:
         """All currently firing or escalated alerts."""
         return [
-            a for a in self._alerts.values()
+            a
+            for a in self._alerts.values()
             if a.state in (AlertState.FIRING, AlertState.ESCALATED)
         ]
 
@@ -210,8 +238,7 @@ class AlertManager:
     def clear_resolved(self) -> int:
         """Remove resolved alerts. Returns count removed."""
         to_remove = [
-            k for k, a in self._alerts.items()
-            if a.state == AlertState.RESOLVED
+            k for k, a in self._alerts.items() if a.state == AlertState.RESOLVED
         ]
         for k in to_remove:
             del self._alerts[k]
@@ -220,11 +247,14 @@ class AlertManager:
     @staticmethod
     def _render_message(rule: AlertRule, state: AgentState, suffix: str = "") -> str:
         try:
-            return rule.message_template.format(
-                name=state.name,
-                failures=state.consecutive_failures,
-                availability=state.availability,
-                avg_latency=state.avg_latency_ms,
-            ) + suffix
+            return (
+                rule.message_template.format(
+                    name=state.name,
+                    failures=state.consecutive_failures,
+                    availability=state.availability,
+                    avg_latency=state.avg_latency_ms,
+                )
+                + suffix
+            )
         except KeyError:
             return rule.message_template + suffix

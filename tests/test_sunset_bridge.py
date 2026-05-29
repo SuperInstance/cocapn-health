@@ -2,6 +2,7 @@
 
 Run: pytest tests/test_sunset_bridge.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -17,6 +18,7 @@ from cocapn_health.sunset_bridge import (
 
 # ── Helpers ───────────────────────────────────────────────────────
 
+
 def _mock_urlopen_down(*args, **kwargs):
     """Simulate a connection refused / service down."""
     raise OSError("Connection refused")
@@ -24,18 +26,24 @@ def _mock_urlopen_down(*args, **kwargs):
 
 def _mock_urlopen_up(*args, **kwargs):
     """Simulate a healthy service."""
+
     class MockResp:
         status = 200
+
         def read(self, n=-1):
             return b'{"rooms": 8}'
+
         def __enter__(self):
             return self
+
         def __exit__(self, *args):
             pass
+
     return MockResp()
 
 
 # ── Fixtures ──────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_bus():
@@ -57,6 +65,7 @@ def services():
 # 1. Event emission on state transitions
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestStateTransitions:
     """service_down and service_recovered fire only on transitions."""
 
@@ -67,8 +76,11 @@ class TestStateTransitions:
             checker.check_all()
 
         # emit is now called with {"type": event_type, **payload}
-        calls = [c for c in mock_bus.emit.call_args_list
-                 if c.args and c.args[0].get("type") == "service_down"]
+        calls = [
+            c
+            for c in mock_bus.emit.call_args_list
+            if c.args and c.args[0].get("type") == "service_down"
+        ]
         assert len(calls) == 2, "Both services should emit service_down on first check"
         assert calls[0].args[0]["service"] == "MUD"
         assert calls[1].args[0]["service"] == "Arena"
@@ -87,8 +99,11 @@ class TestStateTransitions:
         # First check: DOWN
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_down):
             checker.check_all()
-        down_calls = [c for c in mock_bus.emit.call_args_list
-                      if c.args and c.args[0].get("type") == "service_down"]
+        down_calls = [
+            c
+            for c in mock_bus.emit.call_args_list
+            if c.args and c.args[0].get("type") == "service_down"
+        ]
         assert len(down_calls) == 2
 
         # Second check: UP
@@ -96,8 +111,11 @@ class TestStateTransitions:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_up):
             checker.check_all()
 
-        recovered = [c for c in mock_bus.emit.call_args_list
-                   if c.args and c.args[0].get("type") == "service_recovered"]
+        recovered = [
+            c
+            for c in mock_bus.emit.call_args_list
+            if c.args and c.args[0].get("type") == "service_recovered"
+        ]
         assert len(recovered) == 2
 
     def test_up_to_down_emits_service_down(self, mock_bus, services):
@@ -112,8 +130,11 @@ class TestStateTransitions:
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_down):
             checker.check_all()
 
-        down = [c for c in mock_bus.emit.call_args_list
-                if c.args and c.args[0].get("type") == "service_down"]
+        down = [
+            c
+            for c in mock_bus.emit.call_args_list
+            if c.args and c.args[0].get("type") == "service_down"
+        ]
         assert len(down) == 2
 
     def test_no_emit_when_state_unchanged(self, mock_bus, services):
@@ -132,6 +153,7 @@ class TestStateTransitions:
 # ═══════════════════════════════════════════════════════════════════
 # 2. Thermal metrics in events
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestThermalMetrics:
     """Thermal snapshot is included in every emitted event."""
@@ -154,6 +176,7 @@ class TestThermalMetrics:
 # ═══════════════════════════════════════════════════════════════════
 # 3. Graceful degradation
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestGracefulDegradation:
     """Bridge works without sunset-ecosystem installed."""
@@ -184,16 +207,22 @@ class TestGracefulDegradation:
 # 4. emit_on_every_check fleet_health snapshot
 # ═══════════════════════════════════════════════════════════════════
 
+
 class TestFleetHealthSnapshot:
     """emit_on_every_check sends a fleet_health summary."""
 
     def test_fleet_health_emitted_when_enabled(self, mock_bus, services):
-        checker = EventBusHealthChecker(services, bus=mock_bus, emit_on_every_check=True)
+        checker = EventBusHealthChecker(
+            services, bus=mock_bus, emit_on_every_check=True
+        )
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_up):
             checker.check_all()
 
-        fleet = [c for c in mock_bus.emit.call_args_list
-                 if c.args and c.args[0].get("type") == "fleet_health"]
+        fleet = [
+            c
+            for c in mock_bus.emit.call_args_list
+            if c.args and c.args[0].get("type") == "fleet_health"
+        ]
         assert len(fleet) == 1
         payload = fleet[0].args[0]
         assert payload["total"] == 2
@@ -202,18 +231,24 @@ class TestFleetHealthSnapshot:
         assert "thermal" in payload
 
     def test_fleet_health_not_emitted_when_disabled(self, mock_bus, services):
-        checker = EventBusHealthChecker(services, bus=mock_bus, emit_on_every_check=False)
+        checker = EventBusHealthChecker(
+            services, bus=mock_bus, emit_on_every_check=False
+        )
         with patch("urllib.request.urlopen", side_effect=_mock_urlopen_up):
             checker.check_all()
 
-        fleet = [c for c in mock_bus.emit.call_args_list
-                 if c.args and c.args[0].get("type") == "fleet_health"]
+        fleet = [
+            c
+            for c in mock_bus.emit.call_args_list
+            if c.args and c.args[0].get("type") == "fleet_health"
+        ]
         assert len(fleet) == 0
 
 
 # ═══════════════════════════════════════════════════════════════════
 # 5. Non-regression: existing HealthChecker API intact
 # ═══════════════════════════════════════════════════════════════════
+
 
 class TestApiNotBroken:
     """All public HealthChecker methods still work."""

@@ -1,4 +1,5 @@
 """Tests for cocapn_health.monitor — HealthMonitor, AgentState, HealthStatus."""
+
 from unittest.mock import patch
 
 import pytest
@@ -8,15 +9,20 @@ from cocapn_health.monitor import AgentState, HealthMonitor, HealthStatus
 
 # ── Helpers ───────────────────────────────────────────────────────
 
+
 def _mock_urlopen_up(*args, **kwargs):
     class MockResp:
         status = 200
+
         def read(self, n=-1):
             return b'{"ok": true}'
+
         def __enter__(self):
             return self
+
         def __exit__(self, *args):
             pass
+
     return MockResp()
 
 
@@ -25,10 +31,14 @@ def _mock_urlopen_down(*args, **kwargs):
 
 
 def make_services(n=3):
-    return [ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1) for i in range(n)]
+    return [
+        ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1)
+        for i in range(n)
+    ]
 
 
 # ── AgentState ────────────────────────────────────────────────────
+
 
 class TestAgentState:
     def test_initial_state(self):
@@ -92,6 +102,7 @@ class TestAgentState:
 
 
 # ── HealthMonitor ─────────────────────────────────────────────────
+
 
 class TestHealthMonitor:
     @patch("urllib.request.urlopen", side_effect=_mock_urlopen_up)
@@ -157,9 +168,7 @@ class TestHealthMonitor:
         monitor = HealthMonitor(services, degraded_threshold=0.8)
         monitor.check()  # All up
         # Force one to fail
-        monitor._agent_states["svc-0"].update(
-            CheckResult("svc-0", False, 0.0, "DOWN")
-        )
+        monitor._agent_states["svc-0"].update(CheckResult("svc-0", False, 0.0, "DOWN"))
         # 2/3 = 0.67 < 0.8 threshold → degraded
         assert monitor.overall_status == HealthStatus.DEGRADED
 
@@ -175,6 +184,7 @@ class TestHealthMonitor:
 
 
 # ── HealthStatus enum ─────────────────────────────────────────────
+
 
 class TestHealthStatus:
     def test_values(self):

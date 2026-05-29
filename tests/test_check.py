@@ -5,10 +5,12 @@ from cocapn_health.check import CheckBuilder, CheckRegistry, CustomCheck
 
 # ── CustomCheck ───────────────────────────────────────────────────
 
+
 class TestCustomCheck:
     def test_run_success(self):
         def my_check():
             return CheckResult("db", True, 5.0, "UP")
+
         check = CustomCheck("db", my_check)
         result = check.run()
         assert result.ok
@@ -18,6 +20,7 @@ class TestCustomCheck:
     def test_run_exception(self):
         def bad_check():
             raise ValueError("connection failed")
+
         check = CustomCheck("bad", bad_check)
         result = check.run()
         assert not result.ok
@@ -25,11 +28,14 @@ class TestCustomCheck:
         assert "connection failed" in result.details["error"]
 
     def test_with_tags(self):
-        check = CustomCheck("test", lambda: CheckResult("test", True, 1.0, "UP"), tags=["infra"])
+        check = CustomCheck(
+            "test", lambda: CheckResult("test", True, 1.0, "UP"), tags=["infra"]
+        )
         assert "infra" in check.tags
 
 
 # ── CheckRegistry ─────────────────────────────────────────────────
+
 
 class TestCheckRegistry:
     def test_register_decorator(self):
@@ -168,19 +174,21 @@ class TestCheckRegistry:
 
 # ── CheckBuilder ──────────────────────────────────────────────────
 
+
 class TestCheckBuilder:
     def test_basic_build(self):
-        check = (CheckBuilder("api")
-                 .build(lambda: CheckResult("api", True, 5.0, "UP")))
+        check = CheckBuilder("api").build(lambda: CheckResult("api", True, 5.0, "UP"))
         assert check.name == "api"
         result = check.run()
         assert result.ok
 
     def test_with_timeout_and_tags(self):
-        check = (CheckBuilder("slow")
-                 .timeout(30.0)
-                 .tag("infra", "slow")
-                 .build(lambda: CheckResult("slow", True, 100.0, "UP")))
+        check = (
+            CheckBuilder("slow")
+            .timeout(30.0)
+            .tag("infra", "slow")
+            .build(lambda: CheckResult("slow", True, 100.0, "UP"))
+        )
         assert check.timeout == 30.0
         assert "infra" in check.tags
         assert "slow" in check.tags

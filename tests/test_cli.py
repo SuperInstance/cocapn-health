@@ -24,7 +24,13 @@ class TestCLIBasic:
         assert "--services" in captured.out
 
     def test_json_flag(self, capsys):
-        sys.argv = ["cocapn-health", "--services", "api:127.0.0.1:8080", "--format", "json"]
+        sys.argv = [
+            "cocapn-health",
+            "--services",
+            "api:127.0.0.1:8080",
+            "--format",
+            "json",
+        ]
         try:
             main()
         except SystemExit as e:
@@ -57,6 +63,7 @@ class TestCLIBasic:
         """Test COCAPN_HEALTH_HOST env var overrides default host."""
         monkeypatch.setenv("COCAPN_HEALTH_HOST", "192.168.1.100")
         import cocapn_health.cli as cli_module
+
         src = Path(cli_module.__file__).read_text()
         assert "COCAPN_HEALTH_HOST" in src
         # Verify os module is imported (used in _resolve_services)

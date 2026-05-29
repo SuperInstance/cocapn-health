@@ -1,4 +1,5 @@
 """Tests for system health checks: TCP, DNS, disk, memory, CPU."""
+
 import os
 import threading
 import time
@@ -18,6 +19,7 @@ from cocapn_health import (
 )
 
 # ── TCP Check ──────────────────────────────────────────────────────
+
 
 class _EchoHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -56,6 +58,7 @@ def test_check_tcp_refused():
 
 # ── DNS Check ──────────────────────────────────────────────────────
 
+
 def test_check_dns_localhost():
     result = check_dns("localhost", timeout=5.0)
     assert result.ok
@@ -68,6 +71,7 @@ def test_check_dns_bad():
 
 
 # ── HTTP Check ─────────────────────────────────────────────────────
+
 
 def test_check_http_localhost(http_server):
     url = f"http://127.0.0.1:{http_server}/"
@@ -83,6 +87,7 @@ def test_check_http_bad():
 
 # ── Disk Check ─────────────────────────────────────────────────────
 
+
 def test_check_disk_root():
     result = check_disk("/")
     assert result.ok
@@ -97,6 +102,7 @@ def test_check_disk_bad_path():
 
 # ── Memory Check ───────────────────────────────────────────────────
 
+
 def test_check_memory():
     result = check_memory()
     # May not work on all platforms but shouldn't crash
@@ -107,6 +113,7 @@ def test_check_memory():
 
 # ── CPU Check ──────────────────────────────────────────────────────
 
+
 def test_check_cpu():
     result = check_cpu(max_percent=200.0)
     assert isinstance(result, CheckResult)
@@ -116,6 +123,7 @@ def test_check_cpu():
 
 
 # ── System Bundle ──────────────────────────────────────────────────
+
 
 def test_check_system():
     results = check_system()

@@ -2,6 +2,7 @@
 
 Provides a registry for custom health checks and fluent builders.
 """
+
 from __future__ import annotations
 
 import time
@@ -23,6 +24,7 @@ class CustomCheck:
         timeout: Optional timeout hint (for display/logging only).
         tags: Optional tags for grouping/filtering.
     """
+
     name: str
     func: CheckFunc
     timeout: float = 5.0
@@ -70,13 +72,17 @@ class CheckRegistry:
     def __init__(self) -> None:
         self._checks: dict[str, CustomCheck] = {}
 
-    def register(self, name: str, timeout: float = 5.0, tags: list[str] | None = None) -> Callable:
+    def register(
+        self, name: str, timeout: float = 5.0, tags: list[str] | None = None
+    ) -> Callable:
         """Decorator to register a function as a custom check."""
+
         def decorator(func: CheckFunc) -> CheckFunc:
             self._checks[name] = CustomCheck(
                 name=name, func=func, timeout=timeout, tags=tags or []
             )
             return func
+
         return decorator
 
     def add(self, check: CustomCheck) -> None:
@@ -91,7 +97,9 @@ class CheckRegistry:
         check = self._checks.get(name)
         if check is None:
             return CheckResult(
-                name=name, ok=False, latency_ms=0.0,
+                name=name,
+                ok=False,
+                latency_ms=0.0,
                 status="ERROR | unknown check",
                 details={"error": f"No check registered with name '{name}'"},
             )
@@ -103,10 +111,7 @@ class CheckRegistry:
 
     def run_tagged(self, tag: str) -> list[CheckResult]:
         """Run only checks that have the given tag."""
-        return [
-            check.run() for check in self._checks.values()
-            if tag in check.tags
-        ]
+        return [check.run() for check in self._checks.values() if tag in check.tags]
 
     def run_names(self, names: list[str]) -> list[CheckResult]:
         """Run checks by specific names. Unknown names produce error results."""

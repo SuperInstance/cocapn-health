@@ -10,6 +10,7 @@ Usage:
 Or via CLI:
     cocapn-health --serve 8902
 """
+
 from __future__ import annotations
 
 import json
@@ -96,6 +97,7 @@ def _results_to_dict(results: list[CheckResult]) -> list[dict[str, Any]]:
 
 class HealthHandler(BaseHTTPRequestHandler):
     """HTTP request handler for health API."""
+
     cache: HealthCache  # set by run_api
 
     def log_message(self, format, *args):
@@ -120,32 +122,42 @@ class HealthHandler(BaseHTTPRequestHandler):
             system = self.cache.get_system()
             all_results = fleet + system
             up = sum(1 for r in all_results if r.ok)
-            self._send_json({
-                "status": "ok" if all(r.ok for r in all_results) else "degraded",
-                "summary": {
-                    "total": len(all_results),
-                    "up": up,
-                    "down": len(all_results) - up,
-                    "fleet": len(fleet),
-                    "system": len(system),
-                },
-                "fleet": _results_to_dict(fleet),
-                "system": _results_to_dict(system),
-            })
+            self._send_json(
+                {
+                    "status": "ok" if all(r.ok for r in all_results) else "degraded",
+                    "summary": {
+                        "total": len(all_results),
+                        "up": up,
+                        "down": len(all_results) - up,
+                        "fleet": len(fleet),
+                        "system": len(system),
+                    },
+                    "fleet": _results_to_dict(fleet),
+                    "system": _results_to_dict(system),
+                }
+            )
 
         elif path == "/fleet":
             results = self.cache.get_fleet()
             up = sum(1 for r in results if r.ok)
-            self._send_json({
-                "summary": {"total": len(results), "up": up, "down": len(results) - up},
-                "services": _results_to_dict(results),
-            })
+            self._send_json(
+                {
+                    "summary": {
+                        "total": len(results),
+                        "up": up,
+                        "down": len(results) - up,
+                    },
+                    "services": _results_to_dict(results),
+                }
+            )
 
         elif path == "/system":
             results = self.cache.get_system()
-            self._send_json({
-                "checks": _results_to_dict(results),
-            })
+            self._send_json(
+                {
+                    "checks": _results_to_dict(results),
+                }
+            )
 
         elif path == "/check/tcp":
             host = params.get("host", ["127.0.0.1"])[0]
@@ -178,19 +190,41 @@ class HealthHandler(BaseHTTPRequestHandler):
 
         elif path == "/refresh":
             self.cache.force_refresh()
-            self._send_json({"status": "cache cleared", "message": "Next request will perform fresh checks."})
+            self._send_json(
+                {
+                    "status": "cache cleared",
+                    "message": "Next request will perform fresh checks.",
+                }
+            )
 
         else:
-            self._send_json({"error": "not found", "available_endpoints": [
-                "/", "/health", "/fleet", "/system",
-                "/check/tcp?host=x&port=y", "/check/dns?host=x",
-                "/check/http?url=x", "/check/disk?path=x",
-                "/check/memory", "/check/cpu", "/refresh",
-            ]}, status=404)
+            self._send_json(
+                {
+                    "error": "not found",
+                    "available_endpoints": [
+                        "/",
+                        "/health",
+                        "/fleet",
+                        "/system",
+                        "/check/tcp?host=x&port=y",
+                        "/check/dns?host=x",
+                        "/check/http?url=x",
+                        "/check/disk?path=x",
+                        "/check/memory",
+                        "/check/cpu",
+                        "/refresh",
+                    ],
+                },
+                status=404,
+            )
 
 
-def run_api(host: str = "0.0.0.0", port: int = 8902, ttl: float = 30.0,
-            services: list[ServiceDef] | None = None) -> None:
+def run_api(
+    host: str = "0.0.0.0",
+    port: int = 8902,
+    ttl: float = 30.0,
+    services: list[ServiceDef] | None = None,
+) -> None:
     """Start the health API server."""
     cache = HealthCache(ttl=ttl)
     if services:

@@ -1,4 +1,5 @@
 """Tests for cocapn-health."""
+
 import json
 
 from cocapn_health import CheckResult, HealthChecker, ServiceDef

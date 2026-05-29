@@ -2,6 +2,7 @@
 
 Provides healthy/degraded/unhealthy classification and failure streak tracking.
 """
+
 from __future__ import annotations
 
 import time
@@ -15,6 +16,7 @@ from cocapn_health import CheckResult, HealthChecker, ServiceDef, check_system
 
 class HealthStatus(str, Enum):
     """Overall system health status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -23,6 +25,7 @@ class HealthStatus(str, Enum):
 @dataclass
 class AgentState:
     """Tracks the health state of a single agent/service over time."""
+
     name: str
     last_ok: bool | None = None
     consecutive_failures: int = 0
@@ -52,14 +55,16 @@ class AgentState:
 
         self.history.append(result)
         if len(self.history) > self._MAX_HISTORY:
-            self.history = self.history[-self._MAX_HISTORY:]
+            self.history = self.history[-self._MAX_HISTORY :]
 
     @property
     def availability(self) -> float:
         """Percentage of checks that passed (0.0-100.0)."""
         if self.total_checks == 0:
             return 0.0
-        return round(((self.total_checks - self.total_failures) / self.total_checks) * 100, 2)
+        return round(
+            ((self.total_checks - self.total_failures) / self.total_checks) * 100, 2
+        )
 
     @property
     def avg_latency_ms(self) -> float:
@@ -167,7 +172,9 @@ class HealthMonitor:
     @property
     def failing_agents(self) -> list[str]:
         """Names of agents currently failing."""
-        return [name for name, state in self._agent_states.items() if state.last_ok is False]
+        return [
+            name for name, state in self._agent_states.items() if state.last_ok is False
+        ]
 
     @property
     def summary(self) -> dict[str, Any]:

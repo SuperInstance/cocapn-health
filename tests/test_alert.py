@@ -1,4 +1,5 @@
 """Tests for cocapn_health.alert — AlertManager, AlertRule, HealthAlert, conditions."""
+
 import time
 
 from cocapn_health import CheckResult
@@ -18,6 +19,7 @@ from cocapn_health.monitor import AgentState
 
 # ── Helpers ───────────────────────────────────────────────────────
 
+
 def make_state(name="test", ok=True, consecutive_failures=0, total_checks=1):
     state = AgentState(name=name)
     state.update(CheckResult(name, ok, 10.0, "UP" if ok else "DOWN"))
@@ -30,6 +32,7 @@ def make_state(name="test", ok=True, consecutive_failures=0, total_checks=1):
 
 # ── AlertRule ─────────────────────────────────────────────────────
 
+
 class TestAlertRule:
     def test_basic_rule(self):
         rule = AlertRule("test_rule", is_down)
@@ -39,7 +42,8 @@ class TestAlertRule:
 
     def test_custom_params(self):
         rule = AlertRule(
-            "custom", is_down,
+            "custom",
+            is_down,
             severity=AlertSeverity.CRITICAL,
             cooldown_seconds=60.0,
             escalation_after_failures=5,
@@ -49,6 +53,7 @@ class TestAlertRule:
 
 
 # ── Built-in conditions ───────────────────────────────────────────
+
 
 class TestConditions:
     def test_is_down(self):
@@ -93,10 +98,13 @@ class TestConditions:
 
 # ── HealthAlert ───────────────────────────────────────────────────
 
+
 class TestHealthAlert:
     def test_basic_alert(self):
         alert = HealthAlert(
-            rule_name="down", agent_name="svc", severity=AlertSeverity.WARNING,
+            rule_name="down",
+            agent_name="svc",
+            severity=AlertSeverity.WARNING,
         )
         assert alert.state == AlertState.PENDING
         assert alert.escalation_count == 0
@@ -104,7 +112,9 @@ class TestHealthAlert:
 
     def test_duration_seconds(self):
         alert = HealthAlert(
-            rule_name="down", agent_name="svc", severity=AlertSeverity.WARNING,
+            rule_name="down",
+            agent_name="svc",
+            severity=AlertSeverity.WARNING,
             fired_at=time.time() - 60,
         )
         assert alert.duration_seconds >= 59
@@ -112,8 +122,11 @@ class TestHealthAlert:
 
     def test_to_dict(self):
         alert = HealthAlert(
-            rule_name="down", agent_name="svc", severity=AlertSeverity.CRITICAL,
-            state=AlertState.FIRING, message="Service down",
+            rule_name="down",
+            agent_name="svc",
+            severity=AlertSeverity.CRITICAL,
+            state=AlertState.FIRING,
+            message="Service down",
         )
         d = alert.to_dict()
         assert d["rule_name"] == "down"
@@ -124,6 +137,7 @@ class TestHealthAlert:
 
 
 # ── AlertManager ──────────────────────────────────────────────────
+
 
 class TestAlertManager:
     def test_evaluate_fires_on_down(self):
@@ -166,9 +180,13 @@ class TestAlertManager:
 
     def test_escalation(self):
         mgr = AlertManager()
-        mgr.add_rule(AlertRule(
-            "down", is_down, escalation_after_failures=2,
-        ))
+        mgr.add_rule(
+            AlertRule(
+                "down",
+                is_down,
+                escalation_after_failures=2,
+            )
+        )
         # Fire once
         state = make_state(ok=False)
         state.consecutive_failures = 2
@@ -195,7 +213,9 @@ class TestAlertManager:
     def test_multiple_rules(self):
         mgr = AlertManager()
         mgr.add_rule(AlertRule("down", is_down))
-        mgr.add_rule(AlertRule("failing", consecutive_failures(2), AlertSeverity.WARNING))
+        mgr.add_rule(
+            AlertRule("failing", consecutive_failures(2), AlertSeverity.WARNING)
+        )
         state = make_state(ok=False, consecutive_failures=3)
         fired = mgr.evaluate({"svc": state})
         assert len(fired) == 2
@@ -217,10 +237,13 @@ class TestAlertManager:
 
     def test_message_template(self):
         mgr = AlertManager()
-        mgr.add_rule(AlertRule(
-            "down", is_down,
-            message_template="{name} has {failures} failures",
-        ))
+        mgr.add_rule(
+            AlertRule(
+                "down",
+                is_down,
+                message_template="{name} has {failures} failures",
+            )
+        )
         state = make_state(name="svc", ok=False)
         state.consecutive_failures = 5
         fired = mgr.evaluate({"svc": state})

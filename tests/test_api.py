@@ -1,4 +1,5 @@
 """Tests for the REST API endpoint."""
+
 import json
 import threading
 import time
@@ -16,13 +17,15 @@ def api_server():
     """Start the API on a random available port."""
     # Find a free port
     import socket
+
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
 
-    t = threading.Thread(target=run_api, args=("127.0.0.1", port, 5.0, FLEET_SERVICES[:3]),
-                         daemon=True)
+    t = threading.Thread(
+        target=run_api, args=("127.0.0.1", port, 5.0, FLEET_SERVICES[:3]), daemon=True
+    )
     t.start()
     time.sleep(0.5)
     yield port

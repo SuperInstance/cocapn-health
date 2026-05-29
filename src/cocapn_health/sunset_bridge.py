@@ -9,6 +9,7 @@ Usage::
     checker = EventBusHealthChecker(FLEET_SERVICES, bus=bus)
     results = checker.check_all()   # emits service_down / service_recovered
 """
+
 from __future__ import annotations
 
 import time
@@ -19,6 +20,7 @@ from cocapn_health import CheckResult, HealthChecker, ServiceDef
 # ── Optional sunset-ecosystem integration ─────────────────────────
 try:
     from nexus.fleet_event_bus import FleetEventBus
+
     _HAS_BUS = True
 except Exception:
     FleetEventBus = None  # type: ignore[misc,assignment]
@@ -26,6 +28,7 @@ except Exception:
 
 try:
     import psutil
+
     _HAS_PSUTIL = True
 except Exception:
     _HAS_PSUTIL = False
@@ -136,6 +139,7 @@ class EventBusHealthChecker(HealthChecker):
 
 # ── Thermal snapshot helper ───────────────────────────────────────
 
+
 def _thermal_snapshot() -> dict[str, Any]:
     """Return CPU / memory / thermal pressure metrics."""
     snapshot: dict[str, Any] = {"timestamp": time.time()}
@@ -152,9 +156,13 @@ def _thermal_snapshot() -> dict[str, Any]:
     # GPU metrics (nvidia-smi if available)
     try:
         import subprocess
+
         out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total",
-             "--format=csv,noheader,nounits"],
+            [
+                "nvidia-smi",
+                "--query-gpu=utilization.gpu,memory.used,memory.total",
+                "--format=csv,noheader,nounits",
+            ],
             stderr=subprocess.DEVNULL,
             text=True,
             timeout=2,
