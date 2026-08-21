@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # restart-down-services.sh — Restart the 6 down fleet services on Oracle1
-# Run this on Oracle1 (147.224.38.131) as the ubuntu user
+# Run this on Oracle1 (<BOAT_IP>) as the ubuntu user
 
 set -euo pipefail
 

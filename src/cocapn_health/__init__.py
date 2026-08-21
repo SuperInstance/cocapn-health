@@ -519,7 +519,7 @@ class HealthChecker:
 
 
 # ── Fleet defaults ──────────────────────────────────────────────────
-_FLEET_HOST = os.environ.get("COCAPN_HEALTH_HOST", "147.224.38.131")
+_FLEET_HOST = os.environ.get("COCAPN_HEALTH_HOST", "<BOAT_IP>")
 
 FLEET_SERVICES = [
     ServiceDef("MUD v3", _FLEET_HOST, 4042, "/status", extract={"rooms": "rooms"}),

@@ -6,7 +6,7 @@ services:
     image: cocapn-health:latest
     container_name: cocapn-health
     environment:
-      - COCAPN_HEALTH_HOST=147.224.38.131
+      - COCAPN_HEALTH_HOST=<BOAT_IP>
     command: ["--format", "md", "--system", "--watch", "60", "--fail"]
     restart: unless-stopped
     healthcheck:

@@ -12,7 +12,7 @@
 **Journey:**
 1. Finds repo on GitHub. README looks clean — 400 lines, zero deps. Intrigued.
 2. `git clone`, `cd cocapn-health`, `PYTHONPATH=src python -m cocapn_health.cli`
-3. **Friction:** FLEET_SERVICES defaults to `147.224.38.131` — all 18 services time out. Alex doesn't have access to the fleet host.
+3. **Friction:** FLEET_SERVICES defaults to `<BOAT_IP>` — all 18 services time out. Alex doesn't have access to the fleet host.
 4. **Workaround:** Edits `__init__.py` to change host to `127.0.0.1`, adds own services.
 5. `--format json` works. `--watch 30` works. `--fail` works for CI.
 

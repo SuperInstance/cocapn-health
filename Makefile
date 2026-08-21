@@ -29,7 +29,7 @@ docker-build:
 	docker build -t cocapn-health:latest .
 
 docker-run:
-	docker run --rm -e COCAPN_HEALTH_HOST=147.224.38.131 cocapn-health:latest
+	docker run --rm -e COCAPN_HEALTH_HOST=<BOAT_IP> cocapn-health:latest
 
 clean:
 	rm -rf build/ dist/ .pytest_cache/ .mypy_cache/ .ruff_cache/ htmlcov/

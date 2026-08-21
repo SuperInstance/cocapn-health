@@ -97,7 +97,7 @@ checker = EventBusHealthChecker(FLEET_SERVICES, bus=FleetEventBus())
 Edit `FLEET_SERVICES` in `src/cocapn_health/__init__.py`:
 
 ```python
-ServiceDef("My Service", "147.224.38.131", 9000, "/health"),
+ServiceDef("My Service", "<BOAT_IP>", 9000, "/health"),
 ```
 
 ### 2.2 Check with JSON extraction
@@ -105,7 +105,7 @@ ServiceDef("My Service", "147.224.38.131", 9000, "/health"),
 ```python
 ServiceDef(
     "My Service",
-    "147.224.38.131",
+    "<BOAT_IP>",
     9000,
     "/health",
     extract={"active_users": "metrics.active_users", "version": "version"},
@@ -121,7 +121,7 @@ The `extract` dict maps:
 ```python
 ServiceDef(
     "Legacy API",
-    "147.224.38.131",
+    "<BOAT_IP>",
     9001,
     "/ping",
     method="POST",

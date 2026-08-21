@@ -49,8 +49,8 @@ PYTHONPATH=src python -m cocapn_health.cli
 ```python
 from cocapn_health import check_http
 
-result = check_http("http://147.224.38.131:8847/rooms", timeout=5.0)
-# CheckResult(name="http://147.224.38.131:8847/rooms", ok=True, latency_ms=23.1,
+result = check_http("http://<BOAT_IP>:8847/rooms", timeout=5.0)
+# CheckResult(name="http://<BOAT_IP>:8847/rooms", ok=True, latency_ms=23.1,
 #             status="UP | HTTP 200", details={"status_code": 200, "rooms": 42})
 
 # Require a specific status code
@@ -58,7 +58,7 @@ result = check_http("http://example.com/api", expect_status=200)
 
 # Extract specific JSON fields from the response
 result = check_http(
-    "http://147.224.38.131:4044/stats",
+    "http://<BOAT_IP>:4044/stats",
     extract={"matches": "total_matches", "players": "total_players"}
 )
 # details = {"matches": 1523, "players": 87, ...}
@@ -74,8 +74,8 @@ HTTP 404/400/401 from a live server is treated as "UP" — many fleet services e
 ```python
 from cocapn_health import check_tcp
 
-result = check_tcp("147.224.38.131", 4042, timeout=3.0)
-# CheckResult(name="147.224.38.131:4042", ok=True, latency_ms=12.3,
+result = check_tcp("<BOAT_IP>", 4042, timeout=3.0)
+# CheckResult(name="<BOAT_IP>:4042", ok=True, latency_ms=12.3,
 #             status="UP | TCP connected")
 
 result = check_tcp("127.0.0.1", 59999, timeout=1.0)
