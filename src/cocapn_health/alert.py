@@ -77,13 +77,9 @@ class HealthAlert:
             "severity": self.severity.value,
             "state": self.state.value,
             "message": self.message,
-            "fired_at": datetime.fromtimestamp(
-                self.fired_at, tz=timezone.utc
-            ).isoformat(),
+            "fired_at": datetime.fromtimestamp(self.fired_at, tz=timezone.utc).isoformat(),
             "resolved_at": (
-                datetime.fromtimestamp(self.resolved_at, tz=timezone.utc).isoformat()
-                if self.resolved_at
-                else None
+                datetime.fromtimestamp(self.resolved_at, tz=timezone.utc).isoformat() if self.resolved_at else None
             ),
             "duration_seconds": self.duration_seconds,
             "escalation_count": self.escalation_count,
@@ -177,22 +173,15 @@ class AlertManager:
                         AlertState.ESCALATED,
                     ):
                         # Already firing — check escalation
-                        if (
-                            state.consecutive_failures >= rule.escalation_after_failures
-                            and existing.escalation_count == 0
-                        ):
+                        if state.consecutive_failures >= rule.escalation_after_failures and existing.escalation_count == 0:
                             existing.state = AlertState.ESCALATED
                             existing.escalation_count = 1
-                            existing.message = self._render_message(
-                                rule, state, " (ESCALATED)"
-                            )
+                            existing.message = self._render_message(rule, state, " (ESCALATED)")
                         # Check cooldown
                         if now - existing.last_fire_time < rule.cooldown_seconds:
                             should_fire = False
 
-                    if should_fire and (
-                        existing is None or existing.state == AlertState.RESOLVED
-                    ):
+                    if should_fire and (existing is None or existing.state == AlertState.RESOLVED):
                         alert = HealthAlert(
                             rule_name=rule.name,
                             agent_name=agent_name,
@@ -201,9 +190,7 @@ class AlertManager:
                             message=self._render_message(rule, state),
                             fired_at=now if existing is None else existing.fired_at,
                             last_fire_time=now,
-                            escalation_count=(
-                                existing.escalation_count if existing else 0
-                            ),
+                            escalation_count=(existing.escalation_count if existing else 0),
                         )
                         self._alerts[key] = alert
                         newly_fired.append(alert)
@@ -221,11 +208,7 @@ class AlertManager:
     @property
     def active_alerts(self) -> list[HealthAlert]:
         """All currently firing or escalated alerts."""
-        return [
-            a
-            for a in self._alerts.values()
-            if a.state in (AlertState.FIRING, AlertState.ESCALATED)
-        ]
+        return [a for a in self._alerts.values() if a.state in (AlertState.FIRING, AlertState.ESCALATED)]
 
     @property
     def all_alerts(self) -> list[HealthAlert]:
@@ -237,9 +220,7 @@ class AlertManager:
 
     def clear_resolved(self) -> int:
         """Remove resolved alerts. Returns count removed."""
-        to_remove = [
-            k for k, a in self._alerts.items() if a.state == AlertState.RESOLVED
-        ]
+        to_remove = [k for k, a in self._alerts.items() if a.state == AlertState.RESOLVED]
         for k in to_remove:
             del self._alerts[k]
         return len(to_remove)

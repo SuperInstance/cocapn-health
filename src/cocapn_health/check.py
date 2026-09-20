@@ -72,15 +72,11 @@ class CheckRegistry:
     def __init__(self) -> None:
         self._checks: dict[str, CustomCheck] = {}
 
-    def register(
-        self, name: str, timeout: float = 5.0, tags: list[str] | None = None
-    ) -> Callable:
+    def register(self, name: str, timeout: float = 5.0, tags: list[str] | None = None) -> Callable:
         """Decorator to register a function as a custom check."""
 
         def decorator(func: CheckFunc) -> CheckFunc:
-            self._checks[name] = CustomCheck(
-                name=name, func=func, timeout=timeout, tags=tags or []
-            )
+            self._checks[name] = CustomCheck(name=name, func=func, timeout=timeout, tags=tags or [])
             return func
 
         return decorator

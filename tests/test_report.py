@@ -30,10 +30,7 @@ def _mock_urlopen_down(*args, **kwargs):
 
 
 def make_services(n=3):
-    return [
-        ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1)
-        for i in range(n)
-    ]
+    return [ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1) for i in range(n)]
 
 
 class TestHealthReportManual:
@@ -62,9 +59,7 @@ class TestHealthReportManual:
         assert "svc-a" in d["failing"]
 
     def test_to_json(self):
-        report = HealthReport(
-            status=HealthStatus.HEALTHY, total_services=1, services_up=1
-        )
+        report = HealthReport(status=HealthStatus.HEALTHY, total_services=1, services_up=1)
         j = report.to_json()
         data = json.loads(j)
         assert data["status"] == "healthy"

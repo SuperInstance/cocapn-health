@@ -213,9 +213,7 @@ class TestAlertManager:
     def test_multiple_rules(self):
         mgr = AlertManager()
         mgr.add_rule(AlertRule("down", is_down))
-        mgr.add_rule(
-            AlertRule("failing", consecutive_failures(2), AlertSeverity.WARNING)
-        )
+        mgr.add_rule(AlertRule("failing", consecutive_failures(2), AlertSeverity.WARNING))
         state = make_state(ok=False, consecutive_failures=3)
         fired = mgr.evaluate({"svc": state})
         assert len(fired) == 2

@@ -22,9 +22,7 @@ class HealthReport:
     """
 
     status: HealthStatus
-    checked_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     total_services: int = 0
     services_up: int = 0
     services_down: int = 0
@@ -117,9 +115,7 @@ class HealthReport:
             for check in self.system_checks:
                 ok = check.get("last_ok")
                 emoji = "🟢" if ok else "🔴"
-                lines.append(
-                    f"- {emoji} **{check['name']}**: {check.get('last_status', 'unknown')}"
-                )
+                lines.append(f"- {emoji} **{check['name']}**: {check.get('last_status', 'unknown')}")
             lines.append("")
 
         # Active alerts
@@ -128,9 +124,7 @@ class HealthReport:
             lines.append("")
             for alert in self.alerts:
                 sev = alert.get("severity", "unknown")
-                lines.append(
-                    f"- **[{sev.upper()}]** {alert.get('message', alert.get('rule_name'))}"
-                )
+                lines.append(f"- **[{sev.upper()}]** {alert.get('message', alert.get('rule_name'))}")
             lines.append("")
 
         return "\n".join(lines)
@@ -143,13 +137,6 @@ class HealthReport:
         }
         emoji = status_emoji.get(self.status, "?")
         alert_count = len(self.alerts)
-        alert_str = (
-            f", {alert_count} alert{'s' if alert_count != 1 else ''}"
-            if alert_count
-            else ""
-        )
+        alert_str = f", {alert_count} alert{'s' if alert_count != 1 else ''}" if alert_count else ""
         failing_str = f", failing: {', '.join(self.failing)}" if self.failing else ""
-        return (
-            f"{emoji} {self.status.value.upper()} | "
-            f"{self.services_up}/{self.total_services} up{failing_str}{alert_str}"
-        )
+        return f"{emoji} {self.status.value.upper()} | {self.services_up}/{self.total_services} up{failing_str}{alert_str}"

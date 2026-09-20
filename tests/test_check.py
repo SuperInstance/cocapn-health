@@ -28,9 +28,7 @@ class TestCustomCheck:
         assert "connection failed" in result.details["error"]
 
     def test_with_tags(self):
-        check = CustomCheck(
-            "test", lambda: CheckResult("test", True, 1.0, "UP"), tags=["infra"]
-        )
+        check = CustomCheck("test", lambda: CheckResult("test", True, 1.0, "UP"), tags=["infra"])
         assert "infra" in check.tags
 
 
@@ -183,12 +181,7 @@ class TestCheckBuilder:
         assert result.ok
 
     def test_with_timeout_and_tags(self):
-        check = (
-            CheckBuilder("slow")
-            .timeout(30.0)
-            .tag("infra", "slow")
-            .build(lambda: CheckResult("slow", True, 100.0, "UP"))
-        )
+        check = CheckBuilder("slow").timeout(30.0).tag("infra", "slow").build(lambda: CheckResult("slow", True, 100.0, "UP"))
         assert check.timeout == 30.0
         assert "infra" in check.tags
         assert "slow" in check.tags

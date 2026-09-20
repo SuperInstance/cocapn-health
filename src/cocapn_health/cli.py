@@ -21,9 +21,7 @@ from cocapn_health import FLEET_SERVICES, HealthChecker, ServiceDef, check_syste
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        prog="cocapn-health", description="Fleet health checker"
-    )
+    parser = argparse.ArgumentParser(prog="cocapn-health", description="Fleet health checker")
     parser.add_argument(
         "--format",
         choices=["json", "md", "oneline"],
@@ -31,15 +29,9 @@ def main():
         help="Output format",
     )
     parser.add_argument("--watch", type=int, help="Watch mode: recheck every N seconds")
-    parser.add_argument(
-        "--fail", action="store_true", help="Exit with error code if any service down"
-    )
-    parser.add_argument(
-        "--host", default=None, help="Override default host (env: COCAPN_HEALTH_HOST)"
-    )
-    parser.add_argument(
-        "--services", default=None, help="Comma-separated name:host:port list"
-    )
+    parser.add_argument("--fail", action="store_true", help="Exit with error code if any service down")
+    parser.add_argument("--host", default=None, help="Override default host (env: COCAPN_HEALTH_HOST)")
+    parser.add_argument("--services", default=None, help="Comma-separated name:host:port list")
     parser.add_argument(
         "--system",
         action="store_true",
@@ -53,9 +45,7 @@ def main():
         const=8902,
         help="Start REST API server on given port (default: 8902)",
     )
-    parser.add_argument(
-        "--ttl", type=float, default=30.0, help="API cache TTL in seconds (default: 30)"
-    )
+    parser.add_argument("--ttl", type=float, default=30.0, help="API cache TTL in seconds (default: 30)")
     args = parser.parse_args()
 
     # REST API mode
@@ -108,9 +98,7 @@ def _resolve_services(args):
                 name, h, port = parts
                 services.append(ServiceDef(name, h, int(port)))
             else:
-                print(
-                    f"Invalid service spec: {spec} (expected name:port or name:host:port)"
-                )
+                print(f"Invalid service spec: {spec} (expected name:port or name:host:port)")
                 sys.exit(1)
     return services
 
