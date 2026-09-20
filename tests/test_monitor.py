@@ -31,10 +31,7 @@ def _mock_urlopen_down(*args, **kwargs):
 
 
 def make_services(n=3):
-    return [
-        ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1)
-        for i in range(n)
-    ]
+    return [ServiceDef(f"svc-{i}", "127.0.0.1", 4000 + i, "/status", timeout=0.1) for i in range(n)]
 
 
 # ── AgentState ────────────────────────────────────────────────────

@@ -23,9 +23,7 @@ def api_server():
     port = s.getsockname()[1]
     s.close()
 
-    t = threading.Thread(
-        target=run_api, args=("127.0.0.1", port, 5.0, FLEET_SERVICES[:3]), daemon=True
-    )
+    t = threading.Thread(target=run_api, args=("127.0.0.1", port, 5.0, FLEET_SERVICES[:3]), daemon=True)
     t.start()
     time.sleep(0.5)
     yield port

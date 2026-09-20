@@ -49,9 +49,7 @@ class CheckResult:
     latency_ms: float
     status: str
     details: dict[str, Any] = field(default_factory=dict)
-    checked_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    checked_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # ── Health Check Functions ──────────────────────────────────────────
@@ -196,9 +194,7 @@ def check_process(name: str) -> CheckResult:
     """Check if a process is running by name (uses pgrep)."""
     start = time.time()
     try:
-        result = subprocess.run(
-            ["pgrep", "-c", name], capture_output=True, text=True, timeout=5
-        )
+        result = subprocess.run(["pgrep", "-c", name], capture_output=True, text=True, timeout=5)
         latency = (time.time() - start) * 1000
         if result.returncode == 0:
             count = int(result.stdout.strip())
@@ -274,9 +270,7 @@ def check_memory(min_percent_free: float = 10.0) -> CheckResult:
             available = info.get("MemAvailable", info.get("MemFree", 0)) * 1024
         else:
             # Fallback: try vm_stat on macOS
-            result = subprocess.run(
-                ["vm_stat"], capture_output=True, text=True, timeout=5
-            )
+            result = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=5)
             lines = result.stdout.strip().split("\n")
             info = {}
             for line in lines:
@@ -284,10 +278,7 @@ def check_memory(min_percent_free: float = 10.0) -> CheckResult:
                     k, v = line.split(":", 1)
                     info[k.strip()] = int(v.strip().rstrip("."))
             page_size = 4096
-            total = (
-                info.get("Pages free", 0) * page_size
-                + info.get("Pages active", 0) * page_size
-            )
+            total = info.get("Pages free", 0) * page_size + info.get("Pages active", 0) * page_size
             available = info.get("Pages free", 0) * page_size
 
         latency = (time.time() - start) * 1000
@@ -371,9 +362,7 @@ def check_fleet_service(service: ServiceDef) -> CheckResult:
     start = time.time()
 
     try:
-        req = urllib.request.Request(
-            url, method=service.method, headers=service.headers
-        )
+        req = urllib.request.Request(url, method=service.method, headers=service.headers)
         with urllib.request.urlopen(req, timeout=service.timeout) as resp:
             latency = (time.time() - start) * 1000
             status_code = resp.status
@@ -504,9 +493,7 @@ class HealthChecker:
             for r in results:
                 emoji = "🟢" if r.ok else "🔴"
                 details = " | ".join(f"{k}={v}" for k, v in list(r.details.items())[:3])
-                lines.append(
-                    f"| {emoji} {r.name} | {r.status} | {r.latency_ms:.0f}ms | {details} |"
-                )
+                lines.append(f"| {emoji} {r.name} | {r.status} | {r.latency_ms:.0f}ms | {details} |")
             return "\n".join(lines)
 
         elif format == "oneline":
@@ -530,9 +517,7 @@ FLEET_SERVICES = [
         "/status",
         extract={"strategies": "strategies"},
     ),
-    ServiceDef(
-        "Arena", _FLEET_HOST, 4044, "/stats", extract={"matches": "total_matches"}
-    ),
+    ServiceDef("Arena", _FLEET_HOST, 4044, "/stats", extract={"matches": "total_matches"}),
     ServiceDef(
         "Grammar Engine",
         _FLEET_HOST,
@@ -551,9 +536,7 @@ FLEET_SERVICES = [
         extract={"rules": "total_rules"},
     ),
     ServiceDef("Rate-Attention", _FLEET_HOST, 4056, "/streams"),
-    ServiceDef(
-        "Skill Forge", _FLEET_HOST, 4057, "/status", extract={"drills": "total_drills"}
-    ),
+    ServiceDef("Skill Forge", _FLEET_HOST, 4057, "/status", extract={"drills": "total_drills"}),
     ServiceDef("PLATO Terminal", _FLEET_HOST, 4060, "/"),
     ServiceDef("PLATO Gate", _FLEET_HOST, 8847, "/rooms", extract={"rooms": "rooms"}),
     ServiceDef("PLATO Shell", _FLEET_HOST, 8848, "/"),

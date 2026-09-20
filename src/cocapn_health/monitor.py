@@ -62,9 +62,7 @@ class AgentState:
         """Percentage of checks that passed (0.0-100.0)."""
         if self.total_checks == 0:
             return 0.0
-        return round(
-            ((self.total_checks - self.total_failures) / self.total_checks) * 100, 2
-        )
+        return round(((self.total_checks - self.total_failures) / self.total_checks) * 100, 2)
 
     @property
     def avg_latency_ms(self) -> float:
@@ -110,9 +108,7 @@ class HealthMonitor:
         self._degraded_threshold = degraded_threshold
         self._unhealthy_threshold = unhealthy_threshold
         self._include_system = include_system
-        self._agent_states: dict[str, AgentState] = {
-            svc.name: AgentState(name=svc.name) for svc in services
-        }
+        self._agent_states: dict[str, AgentState] = {svc.name: AgentState(name=svc.name) for svc in services}
         self._system_states: dict[str, AgentState] = {}
         self._check_count: int = 0
         self._last_check_time: float = 0.0
@@ -172,9 +168,7 @@ class HealthMonitor:
     @property
     def failing_agents(self) -> list[str]:
         """Names of agents currently failing."""
-        return [
-            name for name, state in self._agent_states.items() if state.last_ok is False
-        ]
+        return [name for name, state in self._agent_states.items() if state.last_ok is False]
 
     @property
     def summary(self) -> dict[str, Any]:
